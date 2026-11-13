@@ -9,3 +9,8 @@
    - **Tools:** Google AI Studio, Google Antigravity, Google Agent Skills.
    - **Models:** Gemini Omni, Gemini Live, Gemma, Nano Banana, Lyria.
 4. **No Brittle Selectors:** Navigation and assertions rely on multimodal visual + semantic comprehension, never hardcoded XPath strings.
+
+5. **AST-Verified Patches:** Generated changes must reference existing files and valid syntax before a pull request is proposed.
+6. **Schema-Bound Pipeline:** Inter-agent payloads must use deterministic JSON schemas; free-form prose is not an inter-stage API.
+7. **Safe Sandbox Isolation:** Browser runs use ephemeral contexts, cleared storage, safe mutations only, and a strict execution timeout.
+8. **Spec-First Delivery:** Changes under `src/` must map to an active task in `spec/tasks.md` and pass `python scripts/spec_lint.py`.

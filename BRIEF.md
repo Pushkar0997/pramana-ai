@@ -6,3 +6,11 @@
 ## 2. Target Wedge
 - **Global B2B SaaS & FinTechs:** Replace brittle Playwright/Cypress CSS-selector tests and unreproducible customer bug tickets.
 - **Indian D2C & ONDC Platforms:** Catch mobile viewport overlaps, 4G/UPI callback timeouts, and vernacular (Hindi/Marathi) text overflows.
+
+## 3. Distribution Wedge
+Pramana uses proof-first outreach: audit a prospect's public signup or checkout flow, generate an evidence-backed replay and proposed fix, then share a zero-login founder proof link.
+
+## 4. Explicit Non-Goals
+- No paid cloud lock-in during the prototype phase.
+- No penetration testing, destructive fuzzing, or load/DDoS activity.
+- No blind direct pushes to `main` or `master`; generated changes must be reviewed through a pull request.
