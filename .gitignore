@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-ssr/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.vite/
+.DS_Store
+Thumbs.db
+*.local
+.vercel
