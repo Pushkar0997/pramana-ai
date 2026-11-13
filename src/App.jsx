@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { LyriaWebAudioSynth } from "./services/quotaRouter.js";
+import { REQUIRED_SKILLS, extractBrandFromUrl, validateAuditReportPayload } from "./schemas/auditReportValidator.js";
 
 /* ───────────────────────── Icons (inline, lucide-style) ───────────────────────── */
 const ICONS = {
@@ -79,6 +81,35 @@ export function brandFromUrl(raw) {
 }
 
 const slugOf = (brand) => brand.toLowerCase().replace(/[^a-z0-9]+/g, "") || "store";
+
+/* ───────────────────── Lyria WebAudio cues (quotaRouter · INV-05 / INV-01) ─────────────────────
+ * Lyria is hard-blocked on the free tier (0 RPM), so the cue is virtualised in-browser by
+ * `LyriaWebAudioSynth`: a real A4 → E5 chime at $0.00, no paid audio endpoint. */
+const lyria = new LyriaWebAudioSynth();
+function playLyriaChime(kind = "chime") {
+  try {
+    return kind === "alert" ? lyria.playPaymentAlert() : lyria.playSuccessChime();
+  } catch (e) {
+    /* Autoplay policy or no AudioContext — degrade silently, never break the demo. */
+    return { played: false, reason: "audio_unavailable" };
+  }
+}
+
+/**
+ * Brand name for the outreach view, resolved through the shared INV-08 validator so the UI and
+ * the payload schema can never disagree. Noise subdomains (`checkout.`, `www.`, `pay.`) are
+ * stripped before extraction, then display casing is restored from the local override table:
+ * `https://checkout.blinkit.com/pay` → `Blinkit`.
+ */
+function brandForUrl(raw) {
+  const host = parseHost(raw);
+  if (!host) return "Your Store";
+  const core = host.split(".").filter((l) => l && !HOST_NOISE.has(l));
+  const extracted = extractBrandFromUrl(core.join(".") || host);
+  if (!extracted || extracted === "UnknownBrand") return brandFromUrl(raw);
+  const override = BRAND_OVERRIDES[extracted.toLowerCase().replace(/\s+/g, "")];
+  return override || extracted;
+}
 
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); return true; }
@@ -877,8 +908,58 @@ function Scrubber({ events }) {
   );
 }
 
-function LeakCard({ sc, open, onToggle, ready }) {
+/* ───────────────────── INV-08: scenario payload → validated inter-agent report ───────────────────── */
+const viewportOf = (v) => {
+  const m = /^(\d+)x(\d+)$/.exec(String(v || ""));
+  return m ? { width: Number(m[1]), height: Number(m[2]) } : { width: 390, height: 844 };
+};
+const targetUrlOf = (raw) => {
+  const input = String(raw || "").trim();
+  if (/^https?:\/\/\S+$/i.test(input)) return input;
+  const host = parseHost(input);
+  return host ? `https://${host}` : "https://checkout.zestkart.in/v2/payment";
+};
+
+/** Build the typed AuditReportPayload for the active scenario (schema-bound, `INV-08`). */
+function auditPayloadFor(sc, url) {
+  const box = sc.boxes[0] ? sc.boxes[0].b : { x: 0, y: 0, w: 0, h: 0 };
+  return {
+    schema_version: "audit_report.v1",
+    audit_id: `${sc.specId.toLowerCase()}-${sc.prn}`,
+    spec_id: sc.specId,
+    target_url: targetUrlOf(url),
+    viewport: viewportOf(sc.json.viewport),
+    anomaly: {
+      id: `${sc.specId}-A1`,
+      title: sc.summary,
+      severity: sc.json.severity,
+      category: sc.json.category,
+      component: sc.json.component,
+      confidence: sc.json.confidence,
+      est_conv_drop_pct: sc.json.est_conv_drop_pct,
+      bounding_box: { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.w), height: Math.round(box.h) },
+    },
+    revenue_impact: { estimated_monthly_loss_usd: sc.leakUSD, est_conv_drop_pct: sc.json.est_conv_drop_pct },
+    agent_skills_trace: sc.skills.map((s) => ({ skill: s.name, status: "passed", duration_s: parseFloat(s.dur), log: s.log })),
+    visual_patch: { mode: "nano_banana_before_after", selector_free: true, hunk: sc.pr.hunk },
+    self_healing_pr: {
+      target_file: sc.pr.file,
+      verified_in_ast: true,
+      unified_diff: sc.pr.diff.map((l) => `${l.t === "add" ? "+" : l.t === "del" ? "-" : " "}${l.c}`).join("\n"),
+      branch: sc.pr.branch,
+      pr_number: sc.prn,
+    },
+    telemetry_cost_usd: 0.024,
+  };
+}
+
+function LeakCard({ sc, url, open, onToggle, ready }) {
   const [json, setJson] = useState(false);
+  const payload = useMemo(() => auditPayloadFor(sc, url), [sc, url]);
+  const schema = useMemo(() => validateAuditReportPayload(payload), [payload]);
+  const badge = schema.valid
+    ? { label: "INV-08 Schema Verified", cls: "border-em/40 text-em bg-em/10", title: `${payload.schema_version} · ${payload.agent_skills_trace.length} skills validated · $${payload.telemetry_cost_usd.toFixed(3)} telemetry` }
+    : { label: "INV-08 Schema Error", cls: "border-rd/40 text-rd bg-rd/10", title: schema.errors.join(" · ") };
   return (
     <ActionCard id="card-leak" tone="red" title="🔴 CRITICAL REVENUE LEAK DETECTED" open={open} onToggle={onToggle} ready={ready}
       summary={`Est. Conversion Drop: ${sc.drop} (${sc.leakUSD ? "~$" + fmt(sc.leakUSD) + "/mo leaked" : ""})`}
@@ -908,8 +989,11 @@ function LeakCard({ sc, open, onToggle, ready }) {
             </div>
           ))}
         </div>
-        <button type="button" onClick={() => setJson((j) => !j)} className="w-full text-left px-3 py-1.5 border-t border-line font-mono text-[10px] text-cy hover:bg-white/5">
-          {json ? "Hide" : "Show"} structured JSON ›
+        <button type="button" onClick={() => setJson((j) => !j)} aria-expanded={json} className="w-full text-left px-3 py-1.5 border-t border-line font-mono text-[10px] text-cy hover:bg-white/5 flex items-center gap-2">
+          <span className="flex-1 min-w-0 truncate">{json ? "Hide" : "Show"} structured JSON ›</span>
+          <span className={"shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9.5px] font-bold whitespace-nowrap " + badge.cls} title={badge.title}>
+            <span aria-hidden="true">{schema.valid ? "✓" : "!"}</span>{badge.label}
+          </span>
         </button>
         {json && <pre className="px-3 pb-3 font-mono text-[11px] text-[#9AE6B4] overflow-x-auto">{JSON.stringify({ spec_id: sc.specId, ...sc.json }, null, 2)}</pre>}
       </div>
@@ -920,13 +1004,16 @@ function LeakCard({ sc, open, onToggle, ready }) {
 
 function SkillsCard({ sc, open, onToggle, ready }) {
   const [row, setRow] = useState(null);
-  /* 4/4: BrowserSandbox · TraceCorrelator · ASTBlastRadius · GitPatch (spec/product.md, INV-05) */
-  const total = sc.skills.length;
+  /* 4/4: BrowserSandbox · TraceCorrelator · ASTBlastRadius · GitPatch (spec/product.md, INV-05).
+   * Counted against REQUIRED_SKILLS from the shared INV-08 schema so the badge can never over-claim. */
+  const total = REQUIRED_SKILLS.length;
+  const passed = new Set(sc.skills.map((s) => s.name));
+  const verified = REQUIRED_SKILLS.filter((name) => passed.has(name)).length;
   const secs = sc.skills.reduce((a, s) => a + parseFloat(s.dur), 0).toFixed(1);
   return (
     <ActionCard id="card-skills" tone="amber" title="🟡 GOOGLE AGENT SKILLS EXECUTION TRACE" open={open} onToggle={onToggle} ready={ready}
-      summary={`${total}/${total} deterministic skills passed · ${secs}s`}
-      right={<span className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-[#FBBF24]/40 text-am tabular-nums">{total}/{total} · {secs}s</span>}>
+      summary={`${verified}/${total} deterministic skills passed · ${secs}s`}
+      right={<span className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-[#FBBF24]/40 text-am tabular-nums">{verified}/{total} · {secs}s</span>}>
       <ul className="rounded-lg border border-line bg-bg divide-y divide-line">
         {sc.skills.map((s, i) => (
           <li key={s.name}>
@@ -941,7 +1028,7 @@ function SkillsCard({ sc, open, onToggle, ready }) {
           </li>
         ))}
       </ul>
-      <div className="mt-2 font-mono text-[10px] text-dim">Deterministic skills · no LLM calls in the reproduction path · tap a row for its log</div>
+      <div className="mt-2 font-mono text-[10px] text-dim">{verified}/{total} deterministic skills passed · no LLM calls in the reproduction path · tap a row for its log</div>
     </ActionCard>
   );
 }
@@ -954,7 +1041,11 @@ function PrCard({ sc, open, onToggle, ready, merge, setMerge }) {
   const doMerge = () => {
     if (merge !== "idle") return;
     setMerge("merging");
-    t.current = setTimeout(() => setMerge("merged"), 1400);
+    t.current = setTimeout(() => {
+      setMerge("merged");
+      /* Lyria cue: verified fix landed (WebAudio virtualisation, $0.00 · INV-01/INV-05). */
+      playLyriaChime("chime");
+    }, 1400);
   };
   return (
     <ActionCard id="card-pr" tone="green" title="🟢 SELF-HEALED PULL REQUEST READY (Google Antigravity)" open={open} onToggle={onToggle} ready={ready}
@@ -1067,7 +1158,7 @@ function CommandCenter({ sc, sid, setSid, url, setUrl, audit, runAudit, mode, se
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         <div className="lg:col-span-7 min-w-0"><EyesPane sc={sc} mode={mode} setMode={setMode} audit={audit} url={url} /></div>
         <div className="lg:col-span-5 min-w-0 flex flex-col gap-3">
-          <LeakCard sc={sc} open={open.leak} onToggle={tg("leak")} ready={ready.leak} />
+          <LeakCard sc={sc} url={url} open={open.leak} onToggle={tg("leak")} ready={ready.leak} />
           <SkillsCard sc={sc} open={open.skills} onToggle={tg("skills")} ready={ready.skills} />
           <PrCard sc={sc} open={open.pr} onToggle={tg("pr")} ready={ready.pr} merge={merge} setMerge={setMerge} />
         </div>
@@ -1082,8 +1173,9 @@ function Outreach({ sc, sid, setSid, url }) {
   useEffect(() => setVol(sc.baseVol), [sc.baseVol]);
   const [copiedEmail, copyEmail] = useCopy();
   const [copiedOrb, copyOrb] = useCopy();
-  /* Personalised from whatever URL is in the zero-auth audit bar — no hardcoded prospect. */
-  const brandName = brandFromUrl(url);
+  /* Personalised from whatever URL is in the zero-auth audit bar — no hardcoded prospect.
+   * Brand is resolved through the shared INV-08 extractor, so `checkout.blinkit.com` → `Blinkit`. */
+  const brandName = brandForUrl(url);
   const brandSlug = slugOf(brandName);
   const auditedHost = parseHost(url) || "your checkout";
   const proof = `pramana.dev/proof/${brandSlug}-${sc.prn}`;
@@ -1247,6 +1339,11 @@ function TopNav({ view, setView }) {
             </button>
           ))}
         </nav>
+        <a href="/demo-store/index.html" target="_blank" rel="noopener noreferrer"
+          className="order-4 md:order-none flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-1.5 rounded-full border border-cy/40 bg-cy/10 text-cy hover:bg-cy/20 hover:border-cy/60 transition-colors whitespace-nowrap"
+          aria-label="Open the live buggy storefront demo in a new tab">
+          🧪 Test Live Buggy Storefront <span aria-hidden="true">↗</span>
+        </a>
       </div>
     </header>
   );
@@ -1293,6 +1390,12 @@ export default function App() {
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const setView = (v) => { setViewState(v); try { window.location.hash = v === "outreach" ? "outreach" : "command"; } catch (e) { /* hash unavailable */ } };
+  /* Lyria cue when the judge opens the Gemini Live voice orb (INV-05). */
+  const switchMode = (m) => {
+    if (m === mode) return;
+    setMode(m);
+    if (m === "voice") playLyriaChime("chime");
+  };
   const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   const setSid = (i) => { clearTimers(); setSidRaw(i); setMerge("idle"); setAudit({ state: "done", step: 4, ran: false }); };
   const runAudit = () => {
@@ -1300,7 +1403,15 @@ export default function App() {
     clearTimers(); setMerge("idle"); setView("command");
     setAudit({ state: "running", step: 0, ran: false });
     [1, 2, 3, 4].forEach((n, i) => {
-      timers.current.push(setTimeout(() => setAudit(n === 4 ? { state: "done", step: 4, ran: true } : { state: "running", step: n, ran: false }), (i + 1) * 750));
+      timers.current.push(setTimeout(() => {
+        if (n === 4) {
+          setAudit({ state: "done", step: 4, ran: true });
+          /* Lyria cue: audit completed, verdict + PR ready. */
+          playLyriaChime("chime");
+        } else {
+          setAudit({ state: "running", step: n, ran: false });
+        }
+      }, (i + 1) * 750));
     });
   };
 
@@ -1310,7 +1421,7 @@ export default function App() {
       <main className="gutter w-full max-w-[1480px] mx-auto py-4 flex-1">
         {view === "command" ? (
           <CommandCenter sc={sc} sid={sid} setSid={setSid} url={url} setUrl={setUrl} audit={audit} runAudit={runAudit}
-            mode={mode} setMode={setMode} merge={merge} setMerge={setMerge} open={open} setOpen={setOpen} />
+            mode={mode} setMode={switchMode} merge={merge} setMerge={setMerge} open={open} setOpen={setOpen} />
         ) : (
           <Outreach sc={sc} sid={sid} setSid={setSid} url={url} />
         )}
