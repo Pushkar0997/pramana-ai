@@ -1,14 +1,19 @@
 """
 TraceCorrelatorSkill — Two-stage log pruning & anomaly classification.
 Compresses raw ~25k-token HAR/console logs down to <1,200 tokens using Gemma 4 31B
-(gemma-4-31b-it) and routes anomaly classification via Gemini Decision 1 (INV-06).
+(gemma-4-31b-it via Google AI Studio REST API when GEMINI_API_KEY is set, with
+deterministic fallback) and routes anomaly classification via Gemini Decision 1 (INV-06).
 """
 
 from __future__ import annotations
 
+import json
 import os
 import time
-from typing import Any, Dict, List
+import urllib.error
+import urllib.parse
+import urllib.request
+from typing import Any, Dict, List, Optional
 
 
 MAX_PRUNED_TOKENS = 1200
@@ -19,6 +24,7 @@ class TraceCorrelatorSkill:
     skill_name = "TraceCorrelatorSkill"
     pruner_model = "gemma-4-31b-it"
     classifier_model = "gemini-decision-1"
+    api_base = "https://generativelanguage.googleapis.com/v1beta/models"
 
     @staticmethod
     def estimate_tokens(text: str) -> int:
@@ -26,10 +32,44 @@ class TraceCorrelatorSkill:
             return 0
         return max(1, (len(text) + CHARS_PER_TOKEN_ESTIMATE - 1) // CHARS_PER_TOKEN_ESTIMATE)
 
+    def _call_gemma_pruner_rest(self, raw_summary: str, timeout_sec: float = 4.5) -> Optional[str]:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            return None
+
+        url = f"{self.api_base}/{self.pruner_model}:generateContent?key={urllib.parse.quote(api_key)}"
+        prompt = (
+            "Compress these browser console, HAR >=400, and DOM bounding-box logs into under 250 words "
+            "preserving exact selectors, HTTP statuses, and pixel bounds:\n"
+            f"{raw_summary[:4000]}"
+        )
+        body = json.dumps(
+            {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"maxOutputTokens": 400, "temperature": 0.1},
+            }
+        ).encode("utf-8")
+
+        req = urllib.request.Request(
+            url,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+                if resp.status != 200:
+                    return None
+                data = json.loads(resp.read().decode("utf-8"))
+                text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
+                return text.strip() if isinstance(text, str) and text.strip() else None
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError):
+            return None
+
     def prune_logs(
         self, console_errors: List[str], har_errors: List[Dict[str, Any]], dom_nodes: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """Deterministic Gemma 4 31B token-budget pruner (<1,200 tokens)."""
+        """Two-stage Gemma 4 31B token-budget pruner (<1,200 tokens)."""
         lines: List[str] = []
         for err in console_errors[:8]:
             lines.append(f"[CONSOLE] {err[:220]}")
@@ -40,7 +80,10 @@ class TraceCorrelatorSkill:
                 f"[DOM {node.get('selector')}] box={node.get('bounding_box')} overflow={node.get('overflows_viewport')}"
             )
 
-        summary = "\n".join(lines)
+        deterministic_summary = "\n".join(lines)
+        live_pruned = self._call_gemma_pruner_rest(deterministic_summary)
+        summary = live_pruned if live_pruned else deterministic_summary
+
         max_chars = MAX_PRUNED_TOKENS * CHARS_PER_TOKEN_ESTIMATE
         if len(summary) > max_chars:
             summary = summary[: max_chars - 16] + "\n...[truncated]"
@@ -51,6 +94,7 @@ class TraceCorrelatorSkill:
             "token_budget": MAX_PRUNED_TOKENS,
             "model_used": self.pruner_model,
             "logical_brand": "Gemma",
+            "used_live_api": bool(live_pruned),
         }
 
     def classify_anomaly(
@@ -106,11 +150,10 @@ class TraceCorrelatorSkill:
         pruned = self.prune_logs(console_errors, har_errors, dom_nodes)
         anomaly = self.classify_anomaly(pruned["pruned_text"], dom_nodes, har_errors)
 
-        api_key_present = bool(os.getenv("GEMINI_API_KEY"))
         return {
             "skill": self.skill_name,
             "status": "completed",
-            "mode": "live_gemini_decision" if api_key_present else "deterministic_cascade_fallback",
+            "mode": "live_google_ai_studio" if pruned["used_live_api"] else "deterministic_cascade_fallback",
             "pruned_tokens": pruned["pruned_tokens"],
             "pruner_model": self.pruner_model,
             "classifier_model": self.classifier_model,

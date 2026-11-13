@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZestKart Checkout — Pramana AI Live Demo Storefront</title>
+  <meta name="description" content="Interactive buggy e-commerce checkout target for Pramana AI multimodal QA & voice orb testing." />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; --accent: #06b6d4; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 96px; }
+    .topbar { background: #020617; border-bottom: 1px solid #1e293b; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+    .topbar-title { font-size: 13px; font-weight: 700; color: #22d3ee; letter-spacing: 0.03em; }
+    .bug-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+    .bug-btn { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+    .bug-btn.active { border-color: #22d3ee; background: #083344; color: #67e8f9; }
+    .container { max-width: 760px; margin: 24px auto; padding: 0 16px; display: grid; gap: 16px; }
+    .card { background: var(--card); border: 1px solid #334155; border-radius: 12px; padding: 16px; position: relative; }
+    .card h2 { margin: 0 0 10px; font-size: 16px; }
+    .row { display: flex; justify-content: space-between; margin: 6px 0; color: var(--muted); font-size: 14px; }
+    .sticky-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #020617; border-top: 1px solid #334155; padding: 12px 16px; display: flex; justify-content: center; z-index: 20; }
+    .cta-primary { background: #22d3ee; color: #042f2e; border: none; border-radius: 10px; padding: 12px 24px; font-weight: 700; font-size: 15px; cursor: pointer; }
+    .cta-secondary { background: #0ea5e9; color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; cursor: pointer; width: 100%; }
+    .poller { padding: 12px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; font-size: 13px; color: #cbd5e1; display: flex; align-items: center; gap: 10px; }
+    .spinner { width: 16px; height: 16px; border: 2px solid #334155; border-top-color: #22d3ee; border-radius: 50%; animation: spin 0.9s linear infinite; display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Bug S1: Hindi overflow flex-nowrap + bottom: -48px */
+    body.bug-s1 .sticky-bar { flex-wrap: nowrap; bottom: -48px; }
+    body.bug-s1 #checkout-sticky-cta { white-space: nowrap; width: 440px; }
+
+    /* Bug S3: 2.1:1 low contrast + promo-scrim z-index 40 dead-click blocker */
+    body.bug-s3 #place-order-cta { background: #1e293b; color: #3f4e63; }
+    .promo-scrim { display: none; position: fixed; inset: 0; background: rgba(2, 6, 23, 0.35); z-index: 40; }
+    body.bug-s3 .promo-scrim { display: block; }
+
+    /* Voice orb highlight ring */
+    .pramana-highlight { outline: 3px solid #22d3ee !important; box-shadow: 0 0 0 6px rgba(34, 211, 238, 0.35) !important; }
+    .telemetry-log { font-family: ui-monospace, monospace; font-size: 12px; color: #67e8f9; background: #020617; padding: 10px; border-radius: 8px; border: 1px solid #1e293b; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="topbar-title">ZestKart Checkout (Pramana AI Target)</span>
+    <div class="bug-controls">
+      <button type="button" class="bug-btn" data-bug="S1_HINDI_OVERFLOW">S1: Hindi Overflow</button>
+      <button type="button" class="bug-btn" data-bug="S2_UPI_TIMEOUT">S2: UPI 504 Timeout</button>
+      <button type="button" class="bug-btn" data-bug="S3_DARKMODE_CONTRAST">S3: Dark Contrast + Scrim</button>
+      <button type="button" class="bug-btn" data-bug="NONE">Reset Clean</button>
+    </div>
+  </div>
+
+  <div class="promo-scrim" aria-hidden="true"></div>
+
+  <main class="container">
+    <section class="card">
+      <h2>Order Summary</h2>
+      <div class="row"><span>Boat Airdopes 141 ANC</span><span>₹1,499</span></div>
+      <div class="row"><span>Express Delivery</span><span>FREE</span></div>
+      <div class="row" style="color:#f8fafc;font-weight:700;"><span>Total</span><span>₹1,499</span></div>
+    </section>
+
+    <section class="card">
+      <h2>UPI Payment Verification</h2>
+      <div id="upi-status-poller" class="poller" role="status">
+        <div id="upi-spinner" class="spinner"></div>
+        <span id="upi-status-text">Ready to verify UPI collect request (user@okaxis).</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Confirm &amp; Place Order</h2>
+      <button id="place-order-cta" class="cta-secondary" type="button">Apply Promo &amp; Place Order</button>
+    </section>
+
+    <section class="card">
+      <h2>Live Voice Orb Telemetry</h2>
+      <div id="telemetry-output" class="telemetry-log">Click the cyan Voice Orb (bottom-right) and speak in English or Hindi to correlate the broken DOM node.</div>
+    </section>
+  </main>
+
+  <div class="sticky-bar">
+    <button id="checkout-sticky-cta" class="cta-primary" type="button">Pay ₹1,499 Now</button>
+  </div>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var activeBug = params.get('bug') || 'NONE';
+
+      function applyBug(bug) {
+        activeBug = bug;
+        document.body.classList.remove('bug-s1', 'bug-s2', 'bug-s3');
+        var sticky = document.getElementById('checkout-sticky-cta');
+        var spinner = document.getElementById('upi-spinner');
+        var statusText = document.getElementById('upi-status-text');
+
+        sticky.textContent = 'Pay ₹1,499 Now';
+        spinner.style.display = 'none';
+        statusText.textContent = 'Ready to verify UPI collect request (user@okaxis).';
+
+        document.querySelectorAll('.bug-btn').forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-bug') === bug);
+        });
+
+        if (bug === 'S1_HINDI_OVERFLOW') {
+          document.body.classList.add('bug-s1');
+          sticky.textContent = 'अभी ₹1,499 भुगतान करें और ऑर्डर कन्फर्म करें';
+        } else if (bug === 'S2_UPI_TIMEOUT') {
+          document.body.classList.add('bug-s2');
+          spinner.style.display = 'block';
+          statusText.textContent = 'Polling /api/upi/confirm... 504 Gateway Timeout (no backoff)';
+          fetch('/api/upi/confirm').catch(function () {});
+        } else if (bug === 'S3_DARKMODE_CONTRAST') {
+          document.body.classList.add('bug-s3');
+        }
+      }
+
+      document.querySelectorAll('.bug-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var bug = btn.getAttribute('data-bug');
+          var nextUrl = new URL(window.location.href);
+          if (bug === 'NONE') nextUrl.searchParams.delete('bug');
+          else nextUrl.searchParams.set('bug', bug);
+          window.history.replaceState({}, '', nextUrl.toString());
+          applyBug(bug);
+        });
+      });
+
+      window.addEventListener('pramana:voice-telemetry', function (evt) {
+        var detail = evt.detail || {};
+        document.querySelectorAll('.pramana-highlight').forEach(function (el) {
+          el.classList.remove('pramana-highlight');
+        });
+        var sel = detail.correlated_dom && detail.correlated_dom.selector;
+        if (sel) {
+          var target = document.querySelector(sel);
+          if (target) target.classList.add('pramana-highlight');
+        }
+        document.getElementById('telemetry-output').textContent = JSON.stringify(detail, null, 2);
+      });
+
+      applyBug(activeBug);
+    })();
+  </script>
+  <script src="/orb.js" data-site="zestkart" async></script>
+</body>
+</html>
