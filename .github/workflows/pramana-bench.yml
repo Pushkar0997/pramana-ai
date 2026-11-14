@@ -1,0 +1,30 @@
+﻿name: Pramana-Bench-v1 & Build Gate
+
+on:
+  push:
+    branches: [ main, "feat/**" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run Spec Gate Linter (INV-10)
+        run: python scripts/spec_lint.py
+      - name: Run Pramana-Bench-v1 Suite (6/6 Checks)
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install & Build Production UI Bundle
+        run: |
+          npm ci
+          npm run build
