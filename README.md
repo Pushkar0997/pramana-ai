@@ -20,6 +20,19 @@
 
 ---
 
+## 🔗 Live Interactive Surfaces
+
+Four browser surfaces, one zero-budget deployment. Every link below is a real, judge-clickable artifact — no login, no SDK, no install.
+
+| Route | Surface | What judges can do | Source |
+|---|---|---|---|
+| `/` | **Split-Brain Autonomous QA Command Center & Outreach Studio** | Paste any URL, run the 4-step autonomous audit, inspect the live `/api/health` cascade router, expand the **ADR-006 Quota Cascade Matrix**, and copy the proof-first cold email | [`src/App.jsx`](./src/App.jsx) |
+| `/demo-store/index.html` | **Live Buggy ZestKart Target Storefront** (with embedded `/orb.js`) | Toggle S1 Hindi overflow, S2 UPI 504, S3 dark-mode dead-click; speak into the cyan voice orb; watch `?fixed=false` → **HTTP 504** vs `?fixed=true` → **HTTP 200** | [`public/demo-store/index.html`](./public/demo-store/index.html) |
+| `/proof/index.html?id=142` | **Shareable Zero-Auth Founder Proof Portal** | Open the standalone CTO proof page: replay, network trace, ready-to-merge PR #142 and ROI math | [`public/proof/index.html`](./public/proof/index.html) |
+| `/deck/index.html` | **Interactive 8-Slide Startup Buildathon Pitch Deck** | Click through the pitch narrative and export a **1-click `<5 MB` PDF** for the submission form | [`public/deck/index.html`](./public/deck/index.html) |
+
+---
+
 ## Contents
 
 1. [The Problem](#1-the-problem)

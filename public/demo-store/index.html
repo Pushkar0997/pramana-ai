@@ -66,6 +66,9 @@
         <div id="upi-spinner" class="spinner"></div>
         <span id="upi-status-text">Ready to verify UPI collect request (user@okaxis).</span>
       </div>
+      <button id="upi-patched-replay" type="button" class="bug-btn" style="margin-top:10px;">
+        ✅ Replay Patched Webhook (HTTP 200)
+      </button>
     </section>
 
     <section class="card">
@@ -87,9 +90,17 @@
     (function () {
       var params = new URLSearchParams(window.location.search);
       var activeBug = params.get('bug') || 'NONE';
+      /* `isFixed` drives the real webhook trace: broken S2 polls `/api/upi/confirm?fixed=false`
+       * (HTTP 504), the patched replay polls `?fixed=true` (HTTP 200, idempotent + backoff). */
+      var isFixed = false;
+
+      function fireUpiWebhook() {
+        fetch('/api/upi/confirm?fixed=' + (isFixed ? 'true' : 'false')).catch(function () {});
+      }
 
       function applyBug(bug) {
         activeBug = bug;
+        isFixed = false;
         document.body.classList.remove('bug-s1', 'bug-s2', 'bug-s3');
         var sticky = document.getElementById('checkout-sticky-cta');
         var spinner = document.getElementById('upi-spinner');
@@ -110,13 +121,13 @@
           document.body.classList.add('bug-s2');
           spinner.style.display = 'block';
           statusText.textContent = 'Polling /api/upi/confirm... 504 Gateway Timeout (no backoff)';
-          fetch('/api/upi/confirm').catch(function () {});
+          fireUpiWebhook();
         } else if (bug === 'S3_DARKMODE_CONTRAST') {
           document.body.classList.add('bug-s3');
         }
       }
 
-      document.querySelectorAll('.bug-btn').forEach(function (btn) {
+      document.querySelectorAll('.bug-btn[data-bug]').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var bug = btn.getAttribute('data-bug');
           var nextUrl = new URL(window.location.href);
@@ -125,6 +136,15 @@
           window.history.replaceState({}, '', nextUrl.toString());
           applyBug(bug);
         });
+      });
+
+      document.getElementById('upi-patched-replay').addEventListener('click', function () {
+        applyBug('S2_UPI_TIMEOUT'); // Re-arms the broken state and fires the 504 probe first.
+        isFixed = true;
+        document.getElementById('upi-spinner').style.display = 'none';
+        document.getElementById('upi-status-text').textContent =
+          'Patched: /api/upi/confirm?fixed=true → HTTP 200 (idempotent upsert + 3x backoff)';
+        fireUpiWebhook();
       });
 
       window.addEventListener('pramana:voice-telemetry', function (evt) {

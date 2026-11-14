@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { LyriaWebAudioSynth } from "./services/quotaRouter.js";
 import { REQUIRED_SKILLS, extractBrandFromUrl, validateAuditReportPayload } from "./schemas/auditReportValidator.js";
+import { useLiveAudit } from "./hooks/useLiveAudit.js";
+import { LiveTelemetryStrip } from "./components/LiveTelemetryStrip.jsx";
 
 /* ───────────────────────── Icons (inline, lucide-style) ───────────────────────── */
 const ICONS = {
@@ -85,32 +87,8 @@ const slugOf = (brand) => brand.toLowerCase().replace(/[^a-z0-9]+/g, "") || "sto
 /* ───────────────────── Live serverless probe (/api/health · /api/audit) ─────────────────────
  * Both endpoints are zero-budget Vercel functions (INV-01): `/api/health` reports the active
  * cascade-router tier, `/api/audit` returns the fetched target metadata and deterministic report.
- * Every probe is best-effort — a failed fetch must never break the judge-facing demo. */
-const PRETTY_MODELS = {
-  "gemma-4-31b-it": "Gemma 4 31B",
-  "gemma-2": "Gemma 2",
-  "gemini-decision-1": "Gemini Decision 1",
-  "gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite",
-  "gemini-3.8-live": "Gemini 3.8 Live",
-  antigravity: "Google Antigravity",
-};
-function prettyModel(raw) {
-  const id = String(raw || "").trim();
-  if (!id) return "";
-  return PRETTY_MODELS[id] || id.replace(/-it$/i, "").replace(/-/g, " ");
-}
-/** Human label for the active free-tier model, e.g. `Gemma 4 31B · 14.4K RPD`. */
-function modelLabelFromHealth(data) {
-  const router = data && typeof data === "object" ? data.cascade_router : null;
-  if (router && typeof router === "object") {
-    const keys = Object.keys(router);
-    const key = keys.find((k) => /gemma/i.test(k)) || keys[0];
-    const tier = key ? router[key] : null;
-    if (key) return `${prettyModel(key)}${tier && tier.rpd ? ` · ${tier.rpd}` : ""}`;
-  }
-  const named = data && typeof data === "object" ? data.active_model || data.activeModel || data.model : "";
-  return named ? prettyModel(named) : "";
-}
+ * Every probe is best-effort — a failed fetch must never break the judge-facing demo. The PR #4
+ * `useLiveAudit` hook owns both calls; `liveProbe` below just mirrors its metadata for the badge. */
 
 /* ───────────────────── Lyria WebAudio cues (quotaRouter · INV-05 / INV-01) ─────────────────────
  * Lyria is hard-blocked on the free tier (0 RPM), so the cue is virtualised in-browser by
@@ -1071,6 +1049,13 @@ function PrCard({ sc, open, onToggle, ready, merge, setMerge }) {
   const doMerge = () => {
     if (merge !== "idle") return;
     setMerge("merging");
+    /* Non-blocking patch trace so `Merge Verified Fix` leaves a real `/api/patch` entry in the
+     * Network tab. The optimistic UI never waits on it; failures are swallowed silently. */
+    fetch("/api/patch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prNumber: sc.prn, scenarioId: sc.specId || sc.id, file: p.file, branch: p.branch }),
+    }).catch(() => {});
     t.current = setTimeout(() => {
       setMerge("merged");
       /* Lyria cue: verified fix landed (WebAudio virtualisation, $0.00 · INV-01/INV-05). */
@@ -1393,6 +1378,11 @@ function TopNav({ view, setView }) {
           aria-label="Open the live buggy storefront demo in a new tab">
           🧪 Test Live Buggy Storefront <span aria-hidden="true">↗</span>
         </a>
+        <a href="/deck/index.html" target="_blank" rel="noopener noreferrer"
+          className="order-4 md:order-none flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-1.5 rounded-full border border-line bg-surf text-[#C9CDDA] hover:text-white hover:border-[#2F3650] transition-colors whitespace-nowrap"
+          aria-label="Open the printable 8-slide Startup Buildathon pitch deck in a new tab">
+          📽️ 8-Slide Pitch Deck <span aria-hidden="true">↗</span>
+        </a>
       </div>
     </header>
   );
@@ -1431,19 +1421,17 @@ export default function App() {
   const [liveProbe, setLiveProbe] = useState({ mode: "deterministic", model: "Gemma 4 31B · 14.4K RPD", latencyMs: 18, httpStatus: 200, pageTitle: null });
   const timers = useRef([]);
   const sc = SCENARIOS[sid];
+  /* PR #4 live-audit hook: owns the `/api/health` cascade-router snapshot and the `/api/audit`
+   * probe metadata rendered by `<LiveTelemetryStrip />` (ADR-006 matrix drawer included). */
+  const { health, liveMeta, isProbing, runLiveProbe } = useLiveAudit(sc.specId || sc.id);
 
-  /* Live cascade-router status from the zero-budget serverless function. Silent on failure so the
-   * static Vercel preview and local `vite` dev server both keep working with the seeded defaults. */
+  /* Keep the audit-bar badge in step with the cascade-router snapshot the hook returns. */
   useEffect(() => {
-    fetch("/api/health")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data) return;
-        const label = modelLabelFromHealth(data);
-        setLiveProbe((p) => ({ ...p, model: label || p.model }));
-      })
-      .catch(() => {});
-  }, []);
+    const primary = health && Array.isArray(health.routerModels) ? health.routerModels[0] : null;
+    const label = primary ? `${primary.label} · ${primary.quota}` : "";
+    if (!label) return;
+    setLiveProbe((p) => (p.model === label ? p : { ...p, model: label }));
+  }, [health]);
 
   useEffect(() => {
     const onHash = () => setViewState(readView());
@@ -1465,32 +1453,20 @@ export default function App() {
     if (audit.state === "running") return;
     clearTimers(); setMerge("idle"); setView("command");
     setAudit({ state: "running", step: 0, ran: false });
-    /* Non-blocking serverless probe: fires in parallel with the 4-step timer, so a slow target
-     * fetch can never stall the judge-facing animation. Failures degrade to the seeded defaults. */
-    const clock = () => (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now());
-    const probeStart = clock();
-    fetch("/api/audit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, scenarioId: sc.specId || sc.id }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data || typeof data !== "object") return;
-        const meta = data.page_metadata && typeof data.page_metadata === "object" ? data.page_metadata : {};
-        const skills = Array.isArray(data.agent_skills_trace) ? data.agent_skills_trace : [];
-        const skillModel = skills.map((s) => s && s.model).find(Boolean);
-        const label = prettyModel(data.activeModel || data.active_model || skillModel);
-        const elapsed = Math.round(clock() - probeStart);
-        setLiveProbe((p) => ({
-          mode: meta.live_fetch_succeeded === false ? "deterministic" : "live",
-          model: label || p.model,
-          latencyMs: Number.isFinite(elapsed) ? elapsed : p.latencyMs,
-          httpStatus: typeof meta.http_status === "number" ? meta.http_status : p.httpStatus,
-          pageTitle: meta.page_title || p.pageTitle,
-        }));
-      })
-      .catch(() => {});
+    /* Single live `/api/audit` probe through the PR #4 hook (feeds both `<LiveTelemetryStrip />`
+     * and the audit-bar badge). Fired in parallel with the 4-step timer, so a slow target fetch
+     * or an offline preview can never stall the judge-facing animation. */
+    runLiveProbe(url, sc.specId || sc.id).then((meta) => {
+      const primary = health && Array.isArray(health.routerModels) ? health.routerModels[0] : null;
+      const label = primary ? `${primary.label} · ${primary.quota}` : "";
+      setLiveProbe((p) => ({
+        mode: meta && meta.executionMode === "live_vercel_edge" ? "live" : "deterministic",
+        model: label || p.model,
+        latencyMs: meta && typeof meta.latencyMs === "number" ? meta.latencyMs : p.latencyMs,
+        httpStatus: meta && typeof meta.httpStatus === "number" ? meta.httpStatus : p.httpStatus,
+        pageTitle: (meta && meta.pageTitle) || p.pageTitle,
+      }));
+    });
     [1, 2, 3, 4].forEach((n, i) => {
       timers.current.push(setTimeout(() => {
         if (n === 4) {
@@ -1508,6 +1484,9 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <TopNav view={view} setView={setView} />
       <main className="gutter w-full max-w-[1480px] mx-auto py-4 flex-1">
+        <div className="mb-4">
+          <LiveTelemetryStrip health={health} liveMeta={liveMeta} isProbing={isProbing} />
+        </div>
         {view === "command" ? (
           <CommandCenter sc={sc} sid={sid} setSid={setSid} url={url} setUrl={setUrl} audit={audit} runAudit={runAudit}
             liveProbe={liveProbe} mode={mode} setMode={switchMode} merge={merge} setMerge={setMerge} open={open} setOpen={setOpen} />

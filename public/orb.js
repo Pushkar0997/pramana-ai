@@ -117,6 +117,24 @@
 
     window.dispatchEvent(new CustomEvent('pramana:voice-telemetry', { detail: payload }));
 
+    /* Non-blocking serverless trace: every captured report leaves a real `/api/telemetry`
+     * entry in the Network tab. Fire-and-forget — voice UX never waits on the network. */
+    try {
+      fetch('/api/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: transcript,
+          lang: lang,
+          site: siteId,
+          url: window.location.href,
+          matchedNode: domMatch.selector,
+        }),
+      }).catch(function () {});
+    } catch (_) {
+      // Offline / fetch unavailable — telemetry is best-effort only.
+    }
+
     if (endpoint && navigator.sendBeacon) {
       try {
         navigator.sendBeacon(endpoint, new Blob([JSON.stringify(payload)], { type: 'application/json' }));
