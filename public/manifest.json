@@ -1,0 +1,15 @@
+{
+  "name": "Pramana AI — Autonomous Multimodal QA & Self-Healing Engineering Agent",
+  "short_name": "Pramana AI",
+  "theme_color": "#090A0F",
+  "background_color": "#090A0F",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
