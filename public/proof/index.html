@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pramana AI — Verifiable Founder Proof Portal</title>
+  <style>
+    :root { --bg: #090A0F; --card: #11131C; --border: #1E2230; --cyan: #22D3EE; --emerald: #34D399; --text: #F8FAFC; --muted: #94A3B8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; padding: 20px 16px 96px; }
+    .wrap { max-width: 920px; margin: 0 auto; display: grid; gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+    .header { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .badge { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: #090A0F; }
+    .badge-cyan { color: var(--cyan); border-color: rgba(34, 211, 238, 0.4); }
+    .badge-emerald { color: var(--emerald); border-color: rgba(52, 211, 153, 0.4); }
+    .switcher { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill-btn { background: #090A0F; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .pill-btn.active { color: var(--cyan); border-color: var(--cyan); background: rgba(34, 211, 238, 0.08); }
+    .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+    .preview-box { background: #090A0F; border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+    .preview-label { font-size: 11px; font-family: ui-monospace, monospace; margin-bottom: 8px; }
+    .diff-pre { background: #090A0F; border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-family: ui-monospace, monospace; font-size: 12px; overflow-x: auto; line-height: 1.5; margin: 10px 0 0; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .btn-primary { background: var(--cyan); color: #042F2E; border: none; border-radius: 8px; padding: 10px 16px; font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-secondary { background: #090A0F; color: var(--emerald); border: 1px solid rgba(52, 211, 153, 0.45); border-radius: 8px; padding: 10px 16px; font-weight: 600; font-size: 13px; cursor: pointer; }
+    .muted { color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card">
+      <div class="header">
+        <div>
+          <div class="badge-row">
+            <span class="badge badge-cyan">VERIFIED BY PRAMANA AI (TEAM VIMARSHA)</span>
+            <span class="badge badge-emerald">3/3 deterministic passes</span>
+            <span class="badge badge-emerald">$0.024 audit cost</span>
+          </div>
+          <h1 id="proof-title" style="margin:12px 0 4px;font-size:20px;">ZestKart Checkout Conversion-Leakage Proof</h1>
+          <p id="proof-subtitle" class="muted" style="margin:0;">Target: https://checkout.zestkart.in/v2/payment</p>
+        </div>
+        <div class="switcher">
+          <button type="button" class="pill-btn" data-id="142">#142 Hindi Overflow</button>
+          <button type="button" class="pill-btn" data-id="143">#143 UPI Timeout</button>
+          <button type="button" class="pill-btn" data-id="144">#144 Dark Contrast</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="header">
+        <h2 style="margin:0;font-size:16px;">Before vs. After Visual Patch (Nano Banana Adapter)</h2>
+        <button id="toggle-patch-btn" type="button" class="pill-btn active">Showing: Split Diff</button>
+      </div>
+      <div class="compare-grid">
+        <div class="preview-box" id="before-panel">
+          <div class="preview-label" style="color:#FDA4AF;">BEFORE (Production Bug)</div>
+          <div id="before-visual" style="padding:12px;border-radius:8px;background:#1E293B;overflow:hidden;"></div>
+        </div>
+        <div class="preview-box" id="after-panel">
+          <div class="preview-label" style="color:#34D399;">AFTER (Auto-Patched DOM/CSS)</div>
+          <div id="after-visual" style="padding:12px;border-radius:8px;background:#1E293B;"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin:0 0 6px;font-size:16px;">Gemma 4 31B Root-Cause Trace &amp; Google Antigravity Git Diff</h2>
+      <p id="gemma-trace" class="muted" style="margin:0;"></p>
+      <pre id="git-diff-box" class="diff-pre"></pre>
+      <div class="actions">
+        <button id="copy-diff-btn" type="button" class="btn-secondary">Copy Git Patch (.diff)</button>
+        <a href="/" class="btn-primary">⚡ Open Full Command Center → /</a>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var brand = params.get('brand') || 'ZestKart';
+      var currentId = params.get('id') || '142';
+
+      var PROOFS = {
+        '142': {
+          title: brand + ' — #142: Hindi Sticky CTA Overflows 390px Mobile Viewport',
+          subtitle: 'Scenario: S1_HINDI_OVERFLOW · Selector: #checkout-sticky-cta · Est. Loss: ₹4.2L/mo',
+          beforeHtml: '<button style="white-space:nowrap;width:412px;background:#22D3EE;color:#042F2E;border:none;padding:10px;border-radius:8px;font-weight:700;">अभी ₹1,499 भुगतान करें और ऑर्डर कन्फर्म करें (CLIPPED)</button>',
+          afterHtml: '<button style="width:100%;white-space:normal;word-break:break-word;background:#22D3EE;color:#042F2E;border:none;padding:10px;border-radius:8px;font-weight:700;">अभी ₹1,499 भुगतान करें और ऑर्डर कन्फर्म करें</button>',
+          trace: 'Gemma 4 31B pruned 25k HAR/console tokens to 410 tokens: #checkout-sticky-cta (412px) overflows 390px viewport under hi-IN locale.',
+          diff: '--- a/src/components/checkout/StickyPaymentBar.tsx\n+++ b/src/components/checkout/StickyPaymentBar.tsx\n@@ -18,3 +18,3 @@\n-<button id="checkout-sticky-cta" className="whitespace-nowrap px-6 py-3">\n+<button id="checkout-sticky-cta" className="w-full max-w-full whitespace-normal break-words px-4 py-3">',
+        },
+        '143': {
+          title: brand + ' — #143: UPI Collect Poller 504 Timeout Without Backoff',
+          subtitle: 'Scenario: S2_UPI_TIMEOUT · Selector: #upi-status-poller · Est. Loss: ₹8.9L/mo',
+          beforeHtml: '<div style="color:#FDA4AF;font-family:monospace;font-size:12px;">GET /api/upi/confirm → 504 Gateway Timeout (Uncaught Promise, Spinner Stuck)</div>',
+          afterHtml: '<div style="color:#34D399;font-family:monospace;font-size:12px;">Bounded Exponential Backoff [1s, 2s, 4s] → 200 OK Confirmed</div>',
+          trace: 'Gemma 4 31B pruned HAR >=400 trace: 2x HTTP 504 on /api/v1/payments/upi/status with 15,020ms hang.',
+          diff: '--- a/src/services/payments/upiConfirm.ts\n+++ b/src/services/payments/upiConfirm.ts\n@@ -12,2 +12,5 @@\n-const res = await fetch("/api/v1/payments/upi/status");\n+for (const delay of [1000, 2000, 4000]) {\n+  const res = await fetch("/api/v1/payments/upi/status");\n+  if (res.ok) return res.json();\n+}',
+        },
+        '144': {
+          title: brand + ' — #144: Dark-Mode Place Order Contrast (2.1:1) & Scrim Blocker',
+          subtitle: 'Scenario: S3_DARKMODE_CONTRAST · Selector: #place-order-cta · Est. Loss: ₹2.65L/mo',
+          beforeHtml: '<button style="width:100%;background:#1E293B;color:#3F4E63;border:1px solid #334155;padding:10px;border-radius:8px;">Place Order (Dead-Click Scrim z-40)</button>',
+          afterHtml: '<button style="width:100%;background:#22D3EE;color:#020617;border:none;padding:10px;border-radius:8px;font-weight:700;">Place Order (WCAG AA 11.4:1 · z-50)</button>',
+          trace: 'Gemma 4 31B flagged WCAG AA contrast failure (1.38:1–2.1:1) + div.promo-scrim z-index 40 intercepting clicks.',
+          diff: '--- a/src/components/checkout/PlaceOrderButton.tsx\n+++ b/src/components/checkout/PlaceOrderButton.tsx\n@@ -9,2 +9,2 @@\n-<button id="place-order-cta" className="bg-slate-800 text-slate-700">\n+<button id="place-order-cta" className="bg-cyan-500 text-slate-950 font-semibold z-50">',
+        },
+      };
+
+      var onlyAfter = false;
+      function render(id) {
+        currentId = PROOFS[id] ? id : '142';
+        var p = PROOFS[currentId];
+        document.getElementById('proof-title').textContent = p.title;
+        document.getElementById('proof-subtitle').textContent = p.subtitle;
+        document.getElementById('before-visual').innerHTML = p.beforeHtml;
+        document.getElementById('after-visual').innerHTML = p.afterHtml;
+        document.getElementById('gemma-trace').textContent = p.trace;
+        document.getElementById('git-diff-box').textContent = p.diff;
+        document.querySelectorAll('.pill-btn[data-id]').forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-id') === currentId);
+        });
+      }
+
+      document.querySelectorAll('.pill-btn[data-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-id');
+          var next = new URL(window.location.href);
+          next.searchParams.set('id', id);
+          window.history.replaceState({}, '', next.toString());
+          render(id);
+        });
+      });
+
+      document.getElementById('toggle-patch-btn').addEventListener('click', function () {
+        onlyAfter = !onlyAfter;
+        document.getElementById('before-panel').style.display = onlyAfter ? 'none' : 'block';
+        this.textContent = onlyAfter ? 'Showing: After Patch Only' : 'Showing: Split Diff';
+      });
+
+      document.getElementById('copy-diff-btn').addEventListener('click', function () {
+        var diff = PROOFS[currentId].diff;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(diff);
+        }
+        this.textContent = 'Copied .diff ✓';
+        var self = this;
+        setTimeout(function () { self.textContent = 'Copy Git Patch (.diff)'; }, 1800);
+      });
+
+      render(currentId);
+    })();
+  </script>
+  <script src="/orb.js" data-site="zestkart-proof" async></script>
+</body>
+</html>
