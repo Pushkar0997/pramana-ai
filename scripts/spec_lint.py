@@ -1,3 +1,7 @@
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 """Validate the repository's spec-driven structure and core invariants."""
 
 from pathlib import Path
