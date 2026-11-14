@@ -2,8 +2,9 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/demo-store/(.*)", "destination": "/demo-store/$1" },
+    { "source": "/proof/(.*)", "destination": "/proof/$1" },
     { "source": "/orb.js", "destination": "/orb.js" },
     { "source": "/standalone-demo.html", "destination": "/standalone-demo.html" },
-    { "source": "/((?!api/|demo-store/|orb\\.js|standalone-demo\\.html|assets/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|demo-store/|proof/|orb\\.js|standalone-demo\\.html|assets/).*)", "destination": "/index.html" }
   ]
 }
