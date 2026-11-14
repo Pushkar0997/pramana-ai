@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pramana AI ? Zero-Dependency CLI Proof-First Cold Outreach Generator (INV-04, INV-06)."""
+"""Pramana AI - Zero-Dependency CLI Proof-First Cold Outreach Generator (INV-04, INV-06)."""
 from __future__ import annotations
 
 import argparse
@@ -20,7 +20,8 @@ ALLOWED_AST_FILES = {
     "src/components/checkout/PlaceOrderButton.tsx",
 }
 
-MAX_COST_USD = 0.025  # INV-06 ceiling
+UNIT_ECONOMICS_CEILING_USD = 0.025
+MAX_COST_USD = UNIT_ECONOMICS_CEILING_USD  # INV-06 ceiling
 
 SCENARIOS = {
     "S1_HINDI_OVERFLOW": {
