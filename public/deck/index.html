@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pramana AI — 8-Slide Pitch Deck (Startup Buildathon India 2026)</title>
+  <style>
+    :root { --bg: #090A0F; --card: #11131C; --border: #1E2230; --cyan: #22D3EE; --emerald: #34D399; --text: #F8FAFC; --muted: #94A3B8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; }
+    .controls { position: sticky; top: 0; z-index: 50; background: #05060A; border-bottom: 1px solid var(--border); padding: 10px 18px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+    .nav-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .pill { background: var(--card); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; }
+    .pill.active { color: var(--cyan); border-color: var(--cyan); background: rgba(34, 211, 238, 0.1); }
+    .btn-export { background: var(--cyan); color: #042F2E; border: none; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .deck { max-width: 1120px; margin: 24px auto; padding: 0 16px; display: grid; gap: 24px; }
+    .slide { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 36px 40px; min-height: 540px; display: flex; flex-direction: column; justify-content: space-between; }
+    .slide-kicker { font-family: ui-monospace, monospace; font-size: 12px; color: var(--cyan); letter-spacing: 0.06em; text-transform: uppercase; }
+    .slide h1 { font-size: 38px; margin: 10px 0 12px; line-height: 1.15; }
+    .slide h2 { font-size: 28px; margin: 8px 0 14px; line-height: 1.2; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 12px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 12px; }
+    .box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .box h3 { margin: 0 0 6px; font-size: 15px; color: var(--cyan); }
+    .box p, .box li { margin: 4px 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .metric { font-size: 28px; font-weight: 800; color: var(--emerald); font-family: ui-monospace, monospace; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+    th, td { border-bottom: 1px solid var(--border); padding: 8px 10px; text-align: left; }
+    th { color: var(--cyan); font-family: ui-monospace, monospace; }
+    td { color: var(--muted); }
+    .footer { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 12px; margin-top: 18px; font-family: ui-monospace, monospace; }
+    @media print {
+      @page { size: 16in 9in landscape; margin: 0; }
+      body { background: #090A0F !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .controls { display: none !important; }
+      .deck { max-width: none; margin: 0; padding: 0; gap: 0; }
+      .slide { min-height: 9in; height: 9in; border: none; border-radius: 0; page-break-after: always; break-after: page; }
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <div class="nav-pills">
+      <a href="/" class="pill">⚡ Back to Live App → /</a>
+      <button class="pill active" data-slide="0">1</button>
+      <button class="pill" data-slide="1">2</button>
+      <button class="pill" data-slide="2">3</button>
+      <button class="pill" data-slide="3">4</button>
+      <button class="pill" data-slide="4">5</button>
+      <button class="pill" data-slide="5">6</button>
+      <button class="pill" data-slide="6">7</button>
+      <button class="pill" data-slide="7">8</button>
+    </div>
+    <button id="export-pdf-btn" class="btn-export" type="button">🖨️ Export 8-Slide PDF (&lt; 5 MB)</button>
+  </div>
+
+  <main class="deck">
+    <!-- Slide 1 -->
+    <section class="slide" id="slide-0">
+      <div>
+        <div class="slide-kicker">Slide 1 · Startup Buildathon India 2026 (Google DeepMind × Google Cloud)</div>
+        <h1>Pramana AI <span style="color:#22D3EE;">(प्रमाण)</span></h1>
+        <p style="font-size:18px;color:#CBD5E1;max-width:760px;">Autonomous Multimodal QA, Conversion-Leakage Detection &amp; Self-Healing Engineering Agent. From live URL to verified visual proof and ready-to-merge GitHub PR in 60s.</p>
+        <div class="grid-3" style="margin-top:24px;">
+          <div class="box"><div class="metric">$0.00</div><p>Zero-Budget Serverless &amp; Free-Tier AI Stack (INV-01)</p></div>
+          <div class="box"><div class="metric">$0.024</div><p>Amortized Compute / Audit (&le; $0.025 Ceiling, 86% Margin)</p></div>
+          <div class="box"><div class="metric">0.0%</div><p>File Path Hallucination via AST Verification (INV-04)</p></div>
+        </div>
+      </div>
+      <div class="footer"><span>Built by Team Vimarsha · Pushkar Kumar</span><span>Powered by H2S, Nasscom &amp; Headstart</span></div>
+    </section>
+
+    <!-- Slide 2 -->
+    <section class="slide" id="slide-1">
+      <div>
+        <div class="slide-kicker">Slide 2 · Problem Statement</div>
+        <h2>The $60B QA &amp; Checkout Conversion Bottleneck</h2>
+        <div class="grid-3">
+          <div class="box"><h3>35% Sprint Tax</h3><p>Engineers burn 35% of sprint capacity maintaining brittle Playwright/Cypress CSS selectors that shatter on routine Tailwind refactors.</p></div>
+          <div class="box"><h3>78% Unreproducible</h3><p>Customer bug tickets lack viewport, locale, and network HAR context—leaving checkout regressions unresolved for weeks.</p></div>
+          <div class="box"><h3>11–18% Revenue Leak</h3><p>Mobile 390×844 CTA overlaps, Hindi vernacular text clipping, and UPI 504 webhook races silently kill D2C checkout conversions.</p></div>
+        </div>
+      </div>
+      <div class="footer"><span>Pramana AI · Team Vimarsha</span><span>Slide 2 / 8</span></div>
+    </section>
+
+    <!-- Slide 3 -->
+    <section class="slide" id="slide-2">
+      <div>
+        <div class="slide-kicker">Slide 3 · Proposed Solution</div>
+        <h2>Zero-Config Visual Auditing + Voice Orb + Self-Healing PRs</h2>
+        <div class="grid-3">
+          <div class="box"><h3>1. Visual-Semantic Audit</h3><p>Paste any URL (&le; 3 clicks, zero auth) to inspect 390×844 &amp; 1440×900 viewports via 2D bounding boxes + ARIA roles.</p></div>
+          <div class="box"><h3>2. 1-Line Gemini Live Orb</h3><p>Drop-in <code>&lt;script src="/orb.js"&gt;</code> lets users report bugs in Hindi/English, correlating speech to exact broken DOM nodes.</p></div>
+          <div class="box"><h3>3. Antigravity Auto-PR</h3><p>Synthesizes AST-verified unified diffs for <code>StickyPaymentBar.tsx</code>, <code>upiConfirm.ts</code>, and <code>PlaceOrderButton.tsx</code> in 60s.</p></div>
+        </div>
+      </div>
+      <div class="footer"><span>Pramana AI · Team Vimarsha</span><span>Slide 3 / 8</span></div>
+    </section>
+
+    <!-- Slide 4 -->
+    <section class="slide" id="slide-3">
+      <div>
+        <div class="slide-kicker">Slide 4 · Solution Architecture</div>
+        <h2>4-Tier Serverless Pipeline &amp; Two-Stage Cascade Math</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>Two-Stage Cascade (INV-06)</h3>
+            <ul>
+              <li><strong>Stage 1:</strong> Filter HAR &ge; 400 + console errors; <strong>Gemma 4 31B</strong> prunes 25,000 raw tokens &rarr; &lt; 1,200 tokens (~95% reduction).</li>
+              <li><strong>Stage 2:</strong> <strong>Gemini Decision 1</strong> triages anomaly; keyframe vision inspects only the cropped bounding box.</li>
+              <li><strong>Unit Economics:</strong> $0.024 / audit (&le; $0.025 limit), 86% gross margin.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>Zero-Budget Infrastructure (INV-01)</h3>
+            <ul>
+              <li><strong>Frontend &amp; Edge API:</strong> Vercel Free Tier (<code>/api/health</code>, <code>/api/audit</code>, <code>/api/upi/confirm</code>, <code>/api/telemetry</code>, <code>/api/patch</code>).</li>
+              <li><strong>Playwright Sandbox:</strong> Stateless Docker container on Hugging Face Spaces Free (16 GB RAM) &amp; Cloud Run OCI-ready.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>Pramana AI · Team Vimarsha</span><span>Slide 4 / 8</span></div>
+    </section>
+
+    <!-- Slide 5 -->
+    <section class="slide" id="slide-4">
+      <div>
+        <div class="slide-kicker">Slide 5 · Google AI Tools</div>
+        <h2>Deep Integration Across the Google Agentic Stack</h2>
+        <div class="grid-3">
+          <div class="box"><h3>Google Antigravity</h3><p>AST dependency-graph blast-radius analysis and zero-hallucination self-healing PR synthesis (<code>INV-04</code>).</p></div>
+          <div class="box"><h3>Google Agent Skills</h3><p>4 modular skills: <code>BrowserSandboxSkill</code>, <code>TraceCorrelatorSkill</code>, <code>ASTBlastRadiusSkill</code>, and <code>GitPatchSkill</code>.</p></div>
+          <div class="box"><h3>Google AI Studio</h3><p>Free-Tier REST cascade with strict JSON schema enforcement (<code>INV-08</code>) and &lt;50ms deterministic fallback.</p></div>
+        </div>
+      </div>
+      <div class="footer"><span>Pramana AI · Team Vimarsha</span><span>Slide 5 / 8</span></div>
+    </section>
+
+    <!-- Slide 6 -->
+    <section class="slide" id="slide-5">
+      <div>
+        <div class="slide-kicker">Slide 6 · Google AI Models &amp; ADR-006</div>
+        <h2>5 Specialized Models + Quota Cascade Matrix</h2>
+        <p class="muted" style="font-size:13px;">Models: <strong>Gemini Omni</strong> (Visual DOM) · <strong>Gemini Live</strong> (Voice Orb) · <strong>Gemma 4 31B</strong> (HAR/Console Triage) · <strong>Nano Banana</strong> (Before/After Patch) · <strong>Lyria</strong> (WebAudio Accessibility Cues)</p>
+        <table>
+          <thead><tr><th>Logical Model / Free-Tier Limit</th><th>ADR-006 Production / Virtualization Route</th><th>Daily Quota</th></tr></thead>
+          <tbody>
+            <tr><td>Gemma 4 31B (<code>gemma-4-31b-it</code>)</td><td>Primary HAR/console log pruner (&lt;1,200 tokens)</td><td>14,400 RPD</td></tr>
+            <tr><td>Gemini Decision 1</td><td>Ultra-fast anomaly classification &amp; triage</td><td>10,000 RPD</td></tr>
+            <tr><td>Gemini 3.8 Live</td><td>Live customer voice orb &amp; streaming frames</td><td>Unlimited RPD</td></tr>
+            <tr><td>Gemini Omni (0/0 Preview)</td><td>Virtualized via Gemini 3.5 Flash Lite + Robotics ER 2</td><td>500 / 20 RPD</td></tr>
+            <tr><td>Nano Banana &amp; Lyria (0/0)</td><td>Deterministic DOM/CSS Diff + WebAudio Synth (A4&rarr;E5, D3)</td><td>$0.00 Local</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="footer"><span>Pramana AI · Team Vimarsha</span><span>Slide 6 / 8</span></div>
+    </section>
+
+    <!-- Slide 7 -->
+    <section class="slide" id="slide-6">
+      <div>
+        <div class="slide-kicker">Slide 7 · Market Viability, GTM &amp; Founding Team</div>
+        <h2>Proof-First Cold Outreach &amp; Team Vimarsha</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>B2B SaaS Tiers &amp; Zero-CAC GTM</h3>
+            <ul>
+              <li><strong>Pricing:</strong> $199/mo Growth · $699/mo Enterprise (86% gross margin at $0.024/audit).</li>
+              <li><strong>Proof-First Funnel:</strong> CLI generates a live <code>/proof/index.html</code> URL + copy-ready <code>.diff</code> patch showing real checkout revenue loss before the first sales call.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>Founding Team — Pushkar Kumar</h3>
+            <ul>
+              <li>B.Tech CSE (AI &amp; Edge Computing, Quantum Minor) at MIT ADT University.</li>
+              <li>Deployed 148M-param Longformer (Veritas AI), QIntern 2026 researcher, IBM Qiskit Fall Fest Lead Organizer.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>Pramana AI · Team Vimarsha</span><span>Slide 7 / 8</span></div>
+    </section>
+
+    <!-- Slide 8 -->
+    <section class="slide" id="slide-7">
+      <div>
+        <div class="slide-kicker">Slide 8 · Thank You &amp; Live Verification</div>
+        <h2>Inspect Pramana AI Live</h2>
+        <div class="grid-2">
+          <div class="box">
+            <h3>Interactive Endpoints</h3>
+            <ul>
+              <li>Command Center: <code>/</code></li>
+              <li>Buggy ZestKart Storefront: <code>/demo-store/index.html</code></li>
+              <li>Shareable Founder Proof Portal: <code>/proof/index.html?id=142</code></li>
+              <li>This 8-Slide Deck: <code>/deck/index.html</code></li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>Repository &amp; Benchmark</h3>
+            <ul>
+              <li>GitHub: <code>github.com/Pushkar0997/pramana-ai</code></li>
+              <li><code>Pramana-Bench-v1</code>: 3/3 scenarios verified (<code>S1_HINDI_OVERFLOW</code>, <code>S2_UPI_TIMEOUT</code>, <code>S3_DARKMODE_CONTRAST</code>)</li>
+              <li>Zero-auth, zero-billing, 100% reproducible.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>Thank You · Team Vimarsha</span><span>Slide 8 / 8</span></div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var slides = Array.from(document.querySelectorAll('.slide'));
+      var pills = Array.from(document.querySelectorAll('.pill[data-slide]'));
+      var activeIdx = 0;
+
+      function goTo(idx) {
+        activeIdx = Math.max(0, Math.min(slides.length - 1, idx));
+        pills.forEach(function (p, i) { p.classList.toggle('active', i === activeIdx); });
+        slides[activeIdx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      pills.forEach(function (p) {
+        p.addEventListener('click', function () { goTo(Number(p.getAttribute('data-slide'))); });
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight') goTo(activeIdx + 1);
+        if (e.key === 'ArrowLeft') goTo(activeIdx - 1);
+      });
+
+      document.getElementById('export-pdf-btn').addEventListener('click', function () {
+        window.print();
+      });
+    })();
+  </script>
+</body>
+</html>
