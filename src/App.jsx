@@ -33,7 +33,7 @@ const EDITORIAL_CSS = `
   }
   .gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .page { min-height: 100vh; display: flex; flex-direction: column; background: transparent; color: var(--ink); }
-  .main { flex: 1; width: 100%; max-width: 1400px; margin: 0 auto; padding-block: 28px 8px; }
+  .main { flex: 1; width: 100%; max-width: 1400px; margin: 0 auto; padding-block: 24px 8px; }
   .mast > .gutter, .colophon > .gutter { max-width: 1400px; margin: 0 auto; width: 100%; }
   button { font-family: inherit; cursor: pointer; color: inherit; }
   button:disabled { cursor: default; }
@@ -43,16 +43,16 @@ const EDITORIAL_CSS = `
   .tnum { font-variant-numeric: tabular-nums; }
   em { font-style: italic; }
 
-  /* ── Mode Banner (Explicit Live Scrape vs Benchmark Fixture) ── */
+  /* ── Mode Banner (LIVE PUBLIC HTML vs CONNECTED SANDBOX EXAMPLE) ── */
   .mode-banner {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 18px;
-    padding: 11px 18px; border-radius: 14px; margin-bottom: 24px; font-size: 12.5px; line-height: 1.4;
+    padding: 12px 18px; border-radius: 14px; margin-bottom: 24px; font-size: 13px; line-height: 1.45;
     border: 1.5px solid var(--rule);
   }
   .mode-banner.fixture { background: var(--gold-w); border-color: rgba(255,180,0,.55); color: var(--ink); }
   .mode-banner.live { background: var(--blue-w); border-color: rgba(43,59,255,.35); color: var(--ink); }
   .mode-pill {
-    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
     font: 800 10.5px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
   }
   .mode-pill.fixture { background: var(--ink); color: var(--gold); }
@@ -61,13 +61,15 @@ const EDITORIAL_CSS = `
   /* ── Masthead ── */
   .mast-top { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 20px; padding: 11px 0; font: 500 11px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); border-bottom: 1px solid var(--rule); }
   .status { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); }
-  .mast-main { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px 24px; padding-top: 16px; }
+  .mast-main { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px 24px; padding-top: 16px; padding-bottom: 10px; }
+  .brand-block { display: flex; flex-direction: column; gap: 6px; }
   .brand { display: flex; align-items: flex-end; gap: 6px 20px; flex-wrap: wrap; }
-  .wordmark { margin: 0; font: 800 clamp(42px, 5.6vw, 68px)/.92 var(--display); letter-spacing: -.025em; font-variation-settings: "opsz" 40; color: var(--ink); }
+  .wordmark { margin: 0; font: 800 clamp(40px, 5.2vw, 64px)/.92 var(--display); letter-spacing: -.025em; font-variation-settings: "opsz" 40; color: var(--ink); }
   .wordmark em { font-weight: 500; color: var(--blue); margin-left: .12em; }
-  .brand-side { display: flex; flex-direction: column; padding-bottom: 6px; }
-  .deva { font: 700 26px/1.15 'Noto Serif Devanagari', var(--display); color: var(--blue); }
+  .brand-side { display: flex; flex-direction: column; padding-bottom: 5px; }
+  .deva { font: 700 24px/1.15 'Noto Serif Devanagari', var(--display); color: var(--blue); }
   .gloss { font-size: 12px; color: var(--mute); }
+  .brand-promise { margin: 2px 0 0; font-size: 15px; font-weight: 600; color: var(--ink2); }
   .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
   .tab { display: flex; align-items: center; gap: 10px; padding: 10px 16px 11px; background: none; border: 0; border-bottom: 4px solid transparent; color: var(--mute); text-align: left; transition: color .15s, background .15s; text-decoration: none; }
   .tab:hover { color: var(--ink); background: rgba(43,59,255,.05); }
@@ -80,48 +82,64 @@ const EDITORIAL_CSS = `
   /* ── Type roles ── */
   .kicker { display: block; font: 800 11px/1.3 var(--sans); letter-spacing: .16em; text-transform: uppercase; }
   .sub-k { font: 800 11px/1.3 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--mute); margin: 22px 0 9px; }
-  .headline { margin: 14px 0 0; font: 700 clamp(32px, 4.4vw, 58px)/1.04 var(--display); letter-spacing: -.022em; font-variation-settings: "opsz" 40; text-wrap: balance; animation: rise .55s cubic-bezier(.2,.7,.2,1) both; color: var(--ink); }
+  .headline { margin: 12px 0 0; font: 700 clamp(30px, 4.1vw, 54px)/1.05 var(--display); letter-spacing: -.022em; font-variation-settings: "opsz" 40; text-wrap: balance; animation: rise .55s cubic-bezier(.2,.7,.2,1) both; color: var(--ink); }
   .headline em { font-weight: 500; color: var(--red); }
   .headline em.blue { color: var(--blue); }
   .headline em.green { color: var(--green-d); }
-  .standfirst { margin: 20px 0 0; max-width: 58ch; font-size: 17px; line-height: 1.55; color: var(--ink2); text-wrap: pretty; }
-  .byline { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 18px; font-size: 13px; color: var(--mute); }
+  .standfirst { margin: 16px 0 0; max-width: 60ch; font-size: 16.5px; line-height: 1.55; color: var(--ink2); text-wrap: pretty; }
+  .byline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 16px; font-size: 13px; color: var(--mute); }
   .byline b { color: var(--ink); }
   .lede-sm { margin: 18px 0; font-size: 15px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
   .foot-note { margin: 12px 0 0; font-size: 12.5px; color: var(--mute); }
   .pulse-dot, .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; flex-shrink: 0; animation: livepulse 1.8s ease-out infinite; }
-  .pulse-dot { background: var(--red); margin-right: 8px; animation-name: redpulse; }
+  .pulse-dot { background: var(--blue); margin-right: 8px; }
   .live-dot.gold { background: var(--gold); animation-name: goldpulse; }
 
+  /* ── Capability Scope Grid (What Pramana Can & Cannot Do Today) ── */
+  .scope-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: 12px; margin-top: 20px; }
+  .scope-card { background: var(--card); border: 1px solid var(--rule); border-radius: 16px; padding: 14px 16px; }
+  .scope-card.live-col { border-left: 4px solid var(--blue); }
+  .scope-card.demo-col { border-left: 4px solid var(--gold); }
+  .scope-card h3 { margin: 4px 0 6px; font: 700 14.5px/1.25 var(--sans); color: var(--ink); }
+  .scope-card p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink2); }
+
   /* ── Hero ── */
-  .hero { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 40px 48px; align-items: center; }
-  .hero.solo { align-items: end; }
-  .hero-copy { padding: 6px 0 10px; }
-  .desk { position: relative; overflow: hidden; background: var(--blue); color: #fff; border-radius: 24px; padding: 26px; box-shadow: 0 30px 60px -28px rgba(43,59,255,.6); }
+  .hero { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 36px 44px; align-items: start; }
+  .hero-copy { padding: 4px 0 10px; }
+  .desk { position: relative; overflow: hidden; background: var(--blue); color: #fff; border-radius: 24px; padding: 24px; box-shadow: 0 30px 60px -28px rgba(43,59,255,.6); }
   .desk::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle, rgba(255,255,255,.2) 1.5px, transparent 2px) 0 0 / 12px 12px; -webkit-mask-image: radial-gradient(circle at 100% 0, #000, transparent 55%); mask-image: radial-gradient(circle at 100% 0, #000, transparent 55%); }
   .desk > * { position: relative; z-index: 1; }
-  .desk-k { font: 800 11px/1.3 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: #C7CDFF; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .desk-field { display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 16px; background: #fff; color: var(--ink); border-radius: 14px; }
+  .desk-k { font: 800 11px/1.3 var(--sans); letter-spacing: .15em; text-transform: uppercase; color: #C7CDFF; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .desk-field { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 16px; background: #fff; color: var(--ink); border-radius: 14px; }
   .desk-field:focus-within { box-shadow: 0 0 0 4px var(--gold); }
   .desk-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: 500 14px var(--mono); color: var(--ink); }
-  .desk-run { width: 100%; height: 56px; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 14px; background: var(--gold); color: var(--ink); font: 800 16px var(--sans); transition: transform .15s, box-shadow .15s; box-shadow: 0 6px 0 #C48A00; }
+  .quick-urls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 9px; font-size: 11.5px; color: #D6DAFF; }
+  .quick-chip { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.1); color: #fff; border-radius: 999px; padding: 3px 10px; font: 600 11px var(--mono); transition: background .15s; }
+  .quick-chip:hover { background: rgba(255,255,255,.25); }
+  .desk-run { width: 100%; height: 54px; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 14px; background: var(--gold); color: var(--ink); font: 800 16px var(--sans); transition: transform .15s, box-shadow .15s; box-shadow: 0 6px 0 #C48A00; }
   .desk-run:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 7px 0 #C48A00; }
   .desk-run:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 2px 0 #C48A00; }
   .desk-run:disabled { opacity: .85; }
-  .desk-sub { margin: 22px 0 10px; font: 800 11px/1.3 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: #C7CDFF; }
+  .desk-sub { margin: 20px 0 8px; font: 800 10.5px/1.3 var(--sans); letter-spacing: .13em; text-transform: uppercase; color: #C7CDFF; }
   .scn-list { display: grid; gap: 8px; }
-  .scn { display: flex; align-items: flex-start; gap: 12px; text-align: left; padding: 11px 14px; border: 1.5px solid rgba(255,255,255,.38); border-radius: 14px; background: transparent; color: #fff; font-size: 13.5px; font-weight: 500; line-height: 1.35; transition: background .15s, transform .15s; }
+  .scn { display: flex; align-items: flex-start; gap: 11px; text-align: left; padding: 10px 13px; border: 1.5px solid rgba(255,255,255,.38); border-radius: 14px; background: transparent; color: #fff; font-size: 13px; font-weight: 500; line-height: 1.35; transition: background .15s, transform .15s; }
   .scn:hover { background: rgba(255,255,255,.14); transform: translateX(2px); }
   .scn.on { background: #fff; color: var(--ink); border-color: #fff; font-weight: 700; }
-  .scn-em { font-size: 19px; line-height: 1.2; }
-  .desk-note { margin: 16px 0 0; font-size: 12px; line-height: 1.5; color: #D6DAFF; border-top: 1px solid rgba(255,255,255,.2); padding-top: 12px; }
+  .scn-em { font-size: 18px; line-height: 1.2; }
+  .desk-note { margin: 14px 0 0; font-size: 12px; line-height: 1.45; color: #D6DAFF; border-top: 1px solid rgba(255,255,255,.2); padding-top: 11px; }
   .desk-note b { color: #fff; }
   .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff; animation: spin .8s linear infinite; display: inline-block; }
   .desk-run .spinner { border-color: rgba(11,16,32,.25); border-top-color: var(--ink); }
   .spinner.tiny { width: 13px; height: 13px; border-width: 2px; border-color: rgba(43,59,255,.25); border-top-color: var(--blue); }
 
+  /* ── Section Divider Banner ── */
+  .section-divider {
+    margin-top: 34px; padding: 14px 20px; border-radius: 16px; background: var(--card); border: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 18px;
+  }
+
   /* ── Press strip (audit progress) ── */
-  .press { margin-top: 30px; background: var(--card); border: 1px solid var(--rule); border-radius: 18px; padding: 16px 20px; }
+  .press { margin-top: 24px; background: var(--card); border: 1px solid var(--rule); border-radius: 18px; padding: 16px 20px; }
   .press-bar { height: 5px; border-radius: 3px; background: var(--rule2); overflow: hidden; }
   .press-bar > div { height: 100%; background: linear-gradient(90deg, var(--blue), var(--green)); transition: width .75s linear; }
   .press ol { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px 18px; }
@@ -134,7 +152,7 @@ const EDITORIAL_CSS = `
   .press-done { margin-top: 12px; font: 700 12.5px var(--mono); color: var(--green-d); }
 
   /* ── Grids ── */
-  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 28px; align-items: start; margin-top: 40px; }
+  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 28px; align-items: start; margin-top: 22px; }
   .col-l { grid-column: span 7; min-width: 0; position: sticky; top: 16px; }
   .col-r { grid-column: span 5; min-width: 0; display: flex; flex-direction: column; gap: 22px; }
 
@@ -445,14 +463,18 @@ function Stage({ H, children }) {
 
 const SiteCtx = createContext({ brand: "ZestKart", host: "checkout.zestkart.in", coupon: "ZEST300", isPreset: true });
 function parseSite(url) {
+  const raw = String(url || "").trim();
+  if (!raw) {
+    return { brand: "ZestKart", host: "checkout.zestkart.in", pathname: "/v2/payment", coupon: "ZEST300", isPreset: true };
+  }
   let host = "checkout.zestkart.in";
   let pathname = "/";
   try {
-    const u = new URL(/^https?:\/\//i.test(url.trim()) ? url.trim() : "https://" + url.trim());
+    const u = new URL(/^https?:\/\//i.test(raw) ? raw : "https://" + raw);
     if (u.hostname.includes(".")) host = u.hostname.replace(/^www\./, "");
     pathname = u.pathname || "/";
   } catch { /* keep default */ }
-  const extracted = extractBrandFromUrl(url);
+  const extracted = extractBrandFromUrl(raw);
   const brand = host.includes("zestkart") ? "ZestKart" : extracted !== "UnknownBrand" ? extracted : host.split(".")[0];
   const coupon = brand.replace(/[^a-z]/gi, "").slice(0, 4).toUpperCase().padEnd(4, "X") + "300";
   const isPreset = host.includes("zestkart.in") || host.includes("scalegrid.io");
@@ -727,7 +749,7 @@ function buildClientAuditProfile(rawUrl) {
           name: "ASTBlastRadiusSkill",
           dur: "0.05s",
           desc: "Skipped AST repo traversal (No GitHub repository connected for external public URL)",
-          log: "AST mapping requires Connected GitHub App mode (available in Sandbox Benchmarks)",
+          log: "AST mapping requires Connected GitHub App mode (available in Worked Sandbox Examples)",
         },
         {
           name: "GitPatchSkill",
@@ -740,34 +762,36 @@ function buildClientAuditProfile(rawUrl) {
   };
 }
 
-/* ═════════════ Scenario data (3 Pre-Recorded Checkout Benchmarks) ═════════════ */
+/* ═════════════ Scenario data (3 Worked Examples on Our Connected Demo Storefronts) ═════════════ */
 const M = (x, y, w = 0, h = 0, ox = 164, oy = 8) => ({ x: ox + x * 0.8, y: oy + y * 0.8, w: w * 0.8, h: h * 0.8 });
 const D = (x, y, w = 0, h = 0, ox = 0, oy = 52) => ({ x: ox + x * 0.64, y: oy + y * 0.64, w: w * 0.64, h: h * 0.64 });
 
 const SCENARIOS = [
   {
-    id: "hindi", specId: "S1_HINDI_OVERFLOW", emoji: "📱", label: "ZestKart Benchmark · iPhone 15 Hindi Overflow (Sandbox Fixture)", short: "Hindi overflow",
+    id: "hindi", specId: "S1_HINDI_OVERFLOW", emoji: "📱",
+    label: "Example 1: Mobile Pay Button Clipped on Hindi Checkout — ZestKart (our demo store)",
+    short: "Mobile Pay button clipped (ZestKart demo store)",
     defaultUrl: "https://checkout.zestkart.in/v2/payment",
     kind: "mobile", variant: "hindi", prn: 142, device: "iPhone 15 · Safari 17",
-    viewport: "390 × 844 px · Throttled 4G",
+    viewport: "390 × 844 px · Mobile 4G",
     audience: "an iPhone 15 shopper on Jio 4G", audienceShort: "iPhone",
-    headline: (b, usd) => <>The Pay button on {b} hides on small screens. It costs <em>${fmt(usd)}</em> a month.</>,
-    figCaption: "iPhone 15 on Jio 4G, coupon applied. The sticky Pay bar slides under the trust banner and the Hindi label is clipped.",
+    headline: (b, usd) => <>Worked Example ({b}, our demo store): The mobile Pay button hides on small screens, risking a modeled <em>${fmt(usd)}/mo</em>.</>,
+    figCaption: "Worked Example on ZestKart (our connected demo storefront): On a 390px iPhone 15 screen after applying a coupon, the sticky Pay bar slides under the trust banner and the Hindi label clips.",
     drop: "-14.8%", dropN: 14.8, leakUSD: 18400, baseVol: 3900,
     spark: [3.9, 4.0, 3.9, 4.1, 4.0, 3.9, 4.0, 3.4, 3.3, 3.4, 3.3, 3.3, 3.4, 3.3], deployAt: 7,
-    summary: "The sticky “Pay ₹4,299” bar slides under the trust banner on 390px screens once a coupon is applied, and the Hindi label overflows a flex-nowrap container.",
+    summary: "In our ZestKart demo storefront, applying a coupon pushes the sticky “Pay ₹4,299” bar under the trust banner on 390px screens, and the Hindi label overflows a flex-nowrap container.",
     trace: [
       { lvl: "err", at: "00:08.412", msg: "Uncaught TypeError: Cannot read properties of null (reading 'getBoundingClientRect')", src: "StickyPaymentBar.tsx:42" },
       { lvl: "warn", at: "00:08.440", msg: "CSS flex-nowrap clipping on <390px viewports: .pay-label overflows by 118px", src: "checkout.css:211" },
       { lvl: "warn", at: "00:11.020", msg: "3 click events landed on .trust-strip (z-index 50) instead of #checkout-sticky-cta", src: "HAR #218" },
     ],
-    json: { severity: "critical", category: "layout_overflow", component: "StickyPaymentBar", viewport: "390x844", locale: "hi-IN", confidence: 0.994, est_conv_drop_pct: 14.8 },
+    json: { spec_id: "S1_HINDI_OVERFLOW", severity: "critical", category: "layout_overflow", component: "StickyPaymentBar", viewport: "390x844", locale: "hi-IN", confidence: 0.994, est_conv_drop_pct: 14.8 },
     replay: [{ t: 4, label: "Coupon Applied", kind: "ok" }, { t: 8, label: "Viewport Overflow", kind: "warn" }, { t: 11, label: "3x Frustrated Rage Clicks", kind: "err" }],
     skills: [
-      { name: "BrowserSandboxSkill", desc: "Reproduced state in isolated Cloud Run container", dur: "1.1s", log: "chromium --device='iPhone 15' --net=jio-4g · coupon applied → overflow reproduced 3/3" },
-      { name: "TraceCorrelatorSkill", desc: "Aligned HAR network spike with DOM mutation via Gemma 4 31B", dur: "0.3s", log: "HAR #218 t=8.41s ↔ MutationObserver(.sticky-bar) Δbottom = −48px" },
-      { name: "ASTBlastRadiusSkill", desc: "Mapped 3 coupled files in repository via Google Antigravity", dur: "0.6s", log: "StickyPaymentBar.tsx ← CheckoutLayout.tsx ← locale/hi.json (3 files, 0 tests broken)" },
-      { name: "GitPatchSkill", desc: "Synthesized AST-verified diff on branch pramana/fix-sticky-pay-142", dur: "0.3s", log: "src/components/checkout/StickyPaymentBar.tsx (+4 / -4 lines, INV-04 verified)" },
+      { name: "BrowserSandboxSkill", desc: "Reproduced mobile layout state in isolated browser container", dur: "1.1s", log: "chromium --device='iPhone 15' --net=jio-4g · coupon applied → overflow reproduced 3/3" },
+      { name: "TraceCorrelatorSkill", desc: "Aligned network log spike with DOM mutation timeline", dur: "0.3s", log: "HAR #218 t=8.41s ↔ MutationObserver(.sticky-bar) Δbottom = −48px" },
+      { name: "ASTBlastRadiusSkill", desc: "Mapped 3 coupled files in the connected demo repository", dur: "0.6s", log: "StickyPaymentBar.tsx ← CheckoutLayout.tsx ← locale/hi.json (3 files, 0 tests broken)" },
+      { name: "GitPatchSkill", desc: "Drafted syntax-verified diff on branch pramana/fix-sticky-pay-142", dur: "0.3s", log: "src/components/checkout/StickyPaymentBar.tsx (+4 / -4 lines)" },
     ],
     pr: { branch: "pramana/fix-sticky-pay-142", title: "fix(checkout): keep sticky Pay CTA visible on 390px + Hindi locale", file: "src/components/checkout/StickyPaymentBar.tsx", hunk: "@@ -18,11 +18,11 @@",
       diff: [
@@ -796,7 +820,7 @@ const SCENARIOS = [
       { text: "Layout Overlap: 99.4% confidence", kind: "err", x: 4, y: 470, w: 148, from: "r", box: 0, at: "l" },
       { text: "Dead-Click Zone Detected", kind: "warn", x: 480, y: 440, w: 156, from: "l", box: 1, at: "r" },
       { text: "Hindi text clipped: 96.8% confidence", kind: "err", x: 480, y: 500, w: 156, from: "l", box: 2, at: "r" },
-      { text: "Omni vision · 14 regions · 3 anomalies", kind: "cy", x: 4, y: 12, w: 148 },
+      { text: "Visual DOM · 14 regions · 3 anomalies", kind: "cy", x: 4, y: 12, w: 148 },
       { text: "DOM → #checkout-sticky-cta", kind: "cy", x: 480, y: 12, w: 156 },
     ],
     cursor: [{ x: 300, y: 372, l: "scan" }, { x: 200, y: 520, l: "tap UPI" }, { x: 200, y: 666, l: "tap Pay" }, { x: 200, y: 666, l: "no response" }],
@@ -805,31 +829,33 @@ const SCENARIOS = [
         { who: "User (Hindi/English)", text: "Jab main coupon apply karta hoon, Pay button screen ke neeche chhup jaata hai..." },
         { who: "Orb · Gemini Live", text: "Samajh gaya. Kya aap Pay button dekh paa rahe hain? Main ise abhi developer ko bhej raha hoon." },
       ],
-      cue: "Lyria cue: soft ascending chime (A4 → E5) confirms the report was captured" },
+      cue: "Audio cue: soft ascending chime (A4 → E5) confirms the report was captured" },
   },
   {
-    id: "upi", specId: "S2_UPI_TIMEOUT", emoji: "💳", label: "ZestKart Benchmark · Safari iOS UPI 504 Race (Sandbox Fixture)", short: "UPI timeout",
+    id: "upi", specId: "S2_UPI_TIMEOUT", emoji: "💳",
+    label: "Example 2: UPI Payment Spinner Stuck After Checkout — ZestKart (our demo store)",
+    short: "UPI payment spinner stuck (ZestKart demo store)",
     defaultUrl: "https://checkout.zestkart.in/v2/upi-intent",
     kind: "mobile", variant: "upi", prn: 143, device: "iPhone 15 · Safari iOS 17.5",
     viewport: "390 × 844 px · Safari iOS · 5G",
     audience: "a Safari iOS shopper paying with UPI", audienceShort: "UPI",
-    headline: (b, usd) => <>UPI payments on {b} go through, then hang. That costs <em>${fmt(usd)}</em> a month.</>,
-    figCaption: "Safari on iPhone 15 after a UPI payment. The webhook lands before the order exists, so the spinner never ends.",
+    headline: (b, usd) => <>Worked Example ({b}, our demo store): UPI payments debit, then hang on a 504 spinner—risking a modeled <em>${fmt(usd)}/mo</em>.</>,
+    figCaption: "Worked Example on ZestKart (our connected demo storefront): The UPI webhook arrives 212 ms before the order row is written, leaving the shopper stuck on an infinite spinner.",
     drop: "-9.7%", dropN: 9.7, leakUSD: 11200, baseVol: 2800,
     spark: [3.8, 3.9, 3.8, 3.9, 3.9, 3.8, 3.9, 3.5, 3.5, 3.4, 3.5, 3.5, 3.4, 3.5], deployAt: 7,
-    summary: "The UPI confirmation webhook arrives 212 ms before the order row exists, the handler throws OrderNotFound, and the client spinner waits on a 504 that never resolves.",
+    summary: "In our ZestKart demo storefront, the UPI confirmation webhook arrives 212 ms before the order row exists, throwing OrderNotFound while the client spinner waits on an unresolved 504.",
     trace: [
       { lvl: "err", at: "00:07.204", msg: "POST /api/upi/confirm → 504 Gateway Timeout (30,012 ms)", src: "HAR #164" },
       { lvl: "warn", at: "00:07.001", msg: "webhook payment.captured received 212 ms BEFORE order.created → order_id = null", src: "upi-gw.log" },
       { lvl: "err", at: "00:07.233", msg: "Uncaught (in promise) Error: OrderNotFound at handleUpiWebhook", src: "upiConfirm.ts:27" },
     ],
-    json: { severity: "critical", category: "race_condition", component: "handleUpiWebhook", viewport: "390x844", provider: "upi", confidence: 0.981, est_conv_drop_pct: 9.7 },
+    json: { spec_id: "S2_UPI_TIMEOUT", severity: "critical", category: "race_condition", component: "handleUpiWebhook", viewport: "390x844", provider: "upi", confidence: 0.981, est_conv_drop_pct: 9.7 },
     replay: [{ t: 3, label: "UPI Intent Launched", kind: "ok" }, { t: 7, label: "Webhook Race (order_id null)", kind: "warn" }, { t: 11, label: "4x Retry Taps · Spinner Stuck", kind: "err" }],
     skills: [
-      { name: "BrowserSandboxSkill", desc: "Replayed UPI intent flow in an isolated Cloud Run container", dur: "1.4s", log: "webkit --device='iPhone 15' · mock PSP callback delayed −212ms → 504 reproduced 5/5" },
-      { name: "TraceCorrelatorSkill", desc: "Aligned webhook arrival with the order write via Gemma 4 31B", dur: "0.4s", log: "payment.captured t=7.001s < orders.insert t=7.213s → ordering gap 212ms" },
-      { name: "ASTBlastRadiusSkill", desc: "Mapped 4 coupled files in repository via Google Antigravity", dur: "0.7s", log: "upiConfirm.ts ← orders.repo.ts ← useUpiPoller.ts ← order.reconcile.job.ts" },
-      { name: "GitPatchSkill", desc: "Synthesized idempotent upsert patch on branch pramana/fix-upi-webhook-race-143", dur: "0.3s", log: "src/server/webhooks/upiConfirm.ts (+3 / -3 lines, INV-04 verified)" },
+      { name: "BrowserSandboxSkill", desc: "Replayed UPI payment flow in isolated browser container", dur: "1.4s", log: "webkit --device='iPhone 15' · mock PSP callback delayed −212ms → 504 reproduced 5/5" },
+      { name: "TraceCorrelatorSkill", desc: "Aligned webhook arrival with the database order write", dur: "0.4s", log: "payment.captured t=7.001s < orders.insert t=7.213s → ordering gap 212ms" },
+      { name: "ASTBlastRadiusSkill", desc: "Mapped 4 coupled files in the connected demo repository", dur: "0.7s", log: "upiConfirm.ts ← orders.repo.ts ← useUpiPoller.ts ← order.reconcile.job.ts" },
+      { name: "GitPatchSkill", desc: "Drafted idempotent upsert patch on branch pramana/fix-upi-webhook-race-143", dur: "0.3s", log: "src/server/webhooks/upiConfirm.ts (+3 / -3 lines)" },
     ],
     pr: { branch: "pramana/fix-upi-webhook-race-143", title: "fix(payments): make UPI webhook idempotent and reconcile late orders", file: "src/server/webhooks/upiConfirm.ts", hunk: "@@ -24,9 +24,10 @@",
       diff: [
@@ -853,7 +879,7 @@ const SCENARIOS = [
       { text: "Infinite Loader: 98.1% confidence", kind: "err", x: 4, y: 270, w: 148, from: "r", box: 0, at: "l" },
       { text: "504 Gateway Timeout · 30,012 ms", kind: "err", x: 4, y: 88, w: 148, from: "r", box: 1, at: "l" },
       { text: "Webhook race: payment.captured −212 ms", kind: "warn", x: 480, y: 350, w: 156, from: "l", box: 2, at: "r" },
-      { text: "Omni vision · 11 regions · 3 anomalies", kind: "cy", x: 4, y: 500, w: 148 },
+      { text: "Visual DOM · 11 regions · 3 anomalies", kind: "cy", x: 4, y: 500, w: 148 },
       { text: "DOM → #upi-status-poller", kind: "cy", x: 480, y: 12, w: 156 },
     ],
     cursor: [{ x: 120, y: 520, l: "tap PhonePe" }, { x: 195, y: 660, l: "tap Pay" }, { x: 195, y: 360, l: "wait 30s" }, { x: 290, y: 470, l: "retry" }],
@@ -862,31 +888,33 @@ const SCENARIOS = [
         { who: "User (Hindi/English)", text: "UPI se pay kiya, paise kat gaye, but screen pe sirf spinner ghoom raha hai..." },
         { who: "Orb · Gemini Live", text: "Got it. I have your UPI reference and I am flagging this as a payment confirmation delay now." },
       ],
-      cue: "Lyria cue: low steady tone (D3) signals a payment-critical report" },
+      cue: "Audio cue: low steady tone (D3) signals a payment-critical report" },
   },
   {
-    id: "desktop", specId: "S3_DARKMODE_CONTRAST", emoji: "🖥️", label: "ScaleGrid Benchmark · Desktop Dark-Mode Dead Click (Sandbox Fixture)", short: "Dark-mode dead click",
+    id: "desktop", specId: "S3_DARKMODE_CONTRAST", emoji: "🖥️",
+    label: "Example 3: Unclickable “Place Order” in Dark Mode — ScaleGrid (our demo app)",
+    short: "Dark-mode dead click (ScaleGrid demo app)",
     defaultUrl: "https://app.scalegrid.io/settings/billing",
     kind: "desktop", variant: "desktop", prn: 144, device: "MacBook · Chrome 126",
     viewport: "1440 × 900 px · Desktop Chrome",
     audience: "a desktop Chrome shopper using dark mode", audienceShort: "desktop",
-    headline: (b, usd) => <>In dark mode, “Place order” on {b} does nothing. That costs <em>${fmt(usd)}</em> a month.</>,
-    figCaption: "Desktop Chrome in dark mode. The Apply button is barely visible and Place order ignores every click.",
+    headline: (b, usd) => <>Worked Example ({b}, our demo app): In dark mode, “Place order” ignores every click—risking a modeled <em>${fmt(usd)}/mo</em>.</>,
+    figCaption: "Worked Example on ScaleGrid (our connected demo billing app): In dark mode, the Apply button has 2.1:1 contrast and an invisible overlay blocks clicks on Place order.",
     drop: "-6.3%", dropN: 6.3, leakUSD: 7900, baseVol: 5200,
     spark: [4.4, 4.5, 4.4, 4.5, 4.4, 4.5, 4.4, 4.2, 4.2, 4.1, 4.2, 4.2, 4.1, 4.2], deployAt: 7,
-    summary: "In dark mode the Apply-coupon button renders at 2.1:1 contrast, and an invisible promo scrim swallows every click on “Place order”.",
+    summary: "In our ScaleGrid demo billing app, dark mode renders the Apply-coupon button at 2.1:1 contrast while an invisible promo overlay swallows clicks on “Place order”.",
     trace: [
       { lvl: "warn", at: "00:08.100", msg: "axe/color-contrast: #4A4F63 on #1C2030 = 2.1:1 (needs 4.5:1) on button#apply-coupon", src: "axe-core 4.9" },
       { lvl: "err", at: "00:11.050", msg: "Click on #place-order-cta intercepted by <div.promo-scrim> (z-index: 40)", src: "HAR #301" },
       { lvl: "warn", at: "00:11.900", msg: "5 clicks → 0 handlers fired · dead-click rate 41% on this route", src: "rum.session" },
     ],
-    json: { severity: "high", category: "a11y_dead_click", component: "PlaceOrderButton", viewport: "1440x900", theme: "dark", confidence: 0.991, est_conv_drop_pct: 6.3 },
+    json: { spec_id: "S3_DARKMODE_CONTRAST", severity: "high", category: "a11y_dead_click", component: "PlaceOrderButton", viewport: "1440x900", theme: "dark", confidence: 0.991, est_conv_drop_pct: 6.3 },
     replay: [{ t: 4, label: "Coupon Field Focused", kind: "ok" }, { t: 8, label: "Apply Button Unreadable", kind: "warn" }, { t: 11, label: "5x Dead Clicks on Place Order", kind: "err" }],
     skills: [
-      { name: "BrowserSandboxSkill", desc: "Reproduced dark-mode state in isolated Cloud Run container", dur: "0.9s", log: "chromium 126 --color-scheme=dark · dead click reproduced 5/5" },
-      { name: "TraceCorrelatorSkill", desc: "Aligned click events with the intercepting DOM node via Gemma 4 31B", dur: "0.3s", log: "elementFromPoint(#place-order-cta) → div.promo-scrim (z 40 > z 0)" },
-      { name: "ASTBlastRadiusSkill", desc: "Mapped 2 coupled files in repository via Google Antigravity", dur: "0.5s", log: "PlaceOrderButton.tsx ← PromoScrim.tsx (2 files, 0 tests broken)" },
-      { name: "GitPatchSkill", desc: "Synthesized z-50 & WCAG AA patch on branch pramana/fix-place-order-dead-click-144", dur: "0.2s", log: "src/components/checkout/PlaceOrderButton.tsx (+2 / -2 lines, INV-04 verified)" },
+      { name: "BrowserSandboxSkill", desc: "Reproduced dark-mode layout state in isolated browser container", dur: "0.9s", log: "chromium 126 --color-scheme=dark · dead click reproduced 5/5" },
+      { name: "TraceCorrelatorSkill", desc: "Aligned click events with the intercepting DOM overlay", dur: "0.3s", log: "elementFromPoint(#place-order-cta) → div.promo-scrim (z 40 > z 0)" },
+      { name: "ASTBlastRadiusSkill", desc: "Mapped 2 coupled files in the connected demo repository", dur: "0.5s", log: "PlaceOrderButton.tsx ← PromoScrim.tsx (2 files, 0 tests broken)" },
+      { name: "GitPatchSkill", desc: "Drafted z-index & WCAG AA contrast patch on branch pramana/fix-place-order-dead-click-144", dur: "0.2s", log: "src/components/checkout/PlaceOrderButton.tsx (+2 / -2 lines)" },
     ],
     pr: { branch: "pramana/fix-place-order-dead-click-144", title: "fix(checkout): restore Place order click target and dark-mode contrast", file: "src/components/checkout/PlaceOrderButton.tsx", hunk: "@@ -9,8 +9,8 @@",
       diff: [
@@ -915,22 +943,22 @@ const SCENARIOS = [
         { who: "User (English)", text: "I click Place Order and nothing happens. The Apply button is also almost invisible." },
         { who: "Orb · Gemini Live", text: "Thanks. I can see the dead area on Place order and I am attaching it to your session replay." },
       ],
-      cue: "Lyria cue: two short rising notes signal a UI-interaction report" },
+      cue: "Audio cue: two short rising notes signal a UI-interaction report" },
   },
 ];
 
 const STACK_MODELS = [
-  ["Gemini Omni", "Visual DOM"],
-  ["Gemini Live", "Voice Bug Capture"],
-  ["Gemma 4 31B", "Fast Log Triage"],
-  ["Nano Banana", "Visual UI Diff"],
-  ["Lyria", "Sonic Accessibility Cues"],
+  ["Gemini Omni", "Visual DOM inspection"],
+  ["Gemini Live", "Voice bug reports"],
+  ["Gemma 4 31B", "Log & trace triage"],
+  ["Nano Banana", "Before/After UI diff"],
+  ["Lyria", "Audio feedback cues"],
 ];
 const STACK_TOOLS = [
-  ["Google Antigravity", "Self-Healing AST"],
-  ["Google Agent Skills", "Deterministic skills"],
-  ["Google AI Studio", "Structured JSON"],
-  ["Google Cloud Run", "Isolated sandboxes"],
+  ["Google Antigravity", "Repo AST & diff drafting"],
+  ["Google Agent Skills", "4-step execution trail"],
+  ["Google AI Studio", "Structured JSON output"],
+  ["Google Cloud Run", "Isolated browser runner"],
 ];
 
 function highlight(code) {
@@ -946,7 +974,7 @@ function highlight(code) {
   return out;
 }
 
-/* ═════════════ Benchmark Storefront Simulations ═════════════ */
+/* ═════════════ Connected Demo Storefront Simulations ═════════════ */
 const L = { ink: "#17181D", mute: "#6B6F7B", line: "#E7E4DC", card: "#FFFFFF", bg: "#F5F4F0", brand: "#FF5A36" };
 
 function PhoneShell({ children }) {
@@ -970,15 +998,15 @@ function MobileSim({ variant, fixed }) {
         <span>9:41</span><span style={{ fontSize: 12 }}>{upi ? "5G ▂▄▆█" : "Jio 4G ▂▄▆"}</span>
       </div>
       <div style={{ position: "absolute", top: 46, left: 16, right: 16, height: 34, borderRadius: 12, background: "#E9E7E0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: L.mute, overflow: "hidden", whiteSpace: "nowrap" }}>
-        🔒 {host.length > 30 ? host.slice(0, 29) + "…" : host}
+        🔒 {host.length > 30 ? host.slice(0, 29) + "…" : host} (Demo Store)
       </div>
       <div style={{ position: "absolute", top: 92, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ height: 32, display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 19 }}>
           <span style={{ fontSize: 20 }}>‹</span> Secure Checkout
-          <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 600, color: "#1E8E5A", background: "#E3F4EA", padding: "3px 8px", borderRadius: 8 }}>SSL</span>
+          <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 600, color: "#1E8E5A", background: "#E3F4EA", padding: "3px 8px", borderRadius: 8 }}>DEMO</span>
         </div>
         <div style={{ background: L.card, border: `1px solid ${L.line}`, borderRadius: 16, padding: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: L.mute, letterSpacing: 0.6, marginBottom: 6 }}>ORDER SUMMARY</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: L.mute, letterSpacing: 0.6, marginBottom: 6 }}>ORDER SUMMARY (DEMO STORE)</div>
           <div style={rowS}><span>Aurelia Linen Kurta (M) × 1</span><span>₹2,799</span></div>
           <div style={rowS}><span>Terra Block-print Dupatta × 1</span><span>₹1,800</span></div>
           <div style={{ ...rowS, color: "#1E8E5A" }}><span>Coupon {coupon}</span><span>−₹300</span></div>
@@ -1069,9 +1097,9 @@ function DesktopSim({ fixed }) {
   return (
     <div style={{ width: 1000, height: 625, position: "relative", background: "#0E1016", color: "#E8EAF1", fontFamily: "'Hanken Grotesk', system-ui, sans-serif", borderRadius: 14, overflow: "hidden", boxShadow: "0 0 0 1px #262A3A, 0 24px 50px rgba(11,16,32,.3)" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 56, borderBottom: "1px solid #20243A", display: "flex", alignItems: "center", padding: "0 40px", gap: 28 }}>
-        <span style={{ fontWeight: 800, fontSize: 22, color: "#FF7A59" }}>{brand}</span>
+        <span style={{ fontWeight: 800, fontSize: 22, color: "#FF7A59" }}>{brand} (Demo App)</span>
         <span style={{ fontSize: 15, color: "#5B6178" }}>Cart  ›  Details  ›  <b style={{ color: "#E8EAF1" }}>Payment</b></span>
-        <span style={{ marginLeft: "auto", fontSize: 14, color: "#8A90A6" }}>🔒 Secure checkout</span>
+        <span style={{ marginLeft: "auto", fontSize: 14, color: "#8A90A6" }}>🔒 Connected Demo Sandbox</span>
       </div>
       <div style={{ position: "absolute", left: 40, top: 76, fontSize: 28, fontWeight: 700 }}>Payment</div>
       <div style={{ ...lbl, left: 40, top: 124 }}>Coupon code</div>
@@ -1086,7 +1114,7 @@ function DesktopSim({ fixed }) {
         <span style={{ width: 18, height: 18, borderRadius: 5, border: "1.5px solid #3A4058" }} /> Save card for faster checkout
       </div>
       <div style={{ position: "absolute", left: 640, top: 76, width: 320, height: 350, borderRadius: 16, background: "#141722", border: "1px solid #232840", padding: 22 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.8, color: "#8A90A6", marginBottom: 14 }}>ORDER SUMMARY</div>
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.8, color: "#8A90A6", marginBottom: 14 }}>ORDER SUMMARY (DEMO)</div>
         {[["Aurelia Linen Kurta", "₹2,799"], ["Terra Dupatta", "₹1,800"], ["Coupon " + coupon, "−₹300"], ["Delivery", "Free"]].map(([a, b]) => (
           <div key={a} style={{ display: "flex", justifyContent: "space-between", fontSize: 16, padding: "9px 0", color: a.startsWith("Coupon") ? "#34D399" : "#C9CDDA" }}><span>{a}</span><span>{b}</span></div>
         ))}
@@ -1196,7 +1224,7 @@ function CustomLiveDomStage({ customAudit, mode }) {
     return (
       <div className="live-dom-stage">
         <div className="live-dom-bar">
-          <span>🔒 {customAudit.hostname} · Suggested DOM/ARIA Snippet (Public Scrape Mode)</span>
+          <span>🔒 {customAudit.hostname} · Suggested DOM/ARIA Snippet (Public HTML Mode)</span>
           <span className="badge-pill blue">No Repo Connected</span>
         </div>
         <div className="live-dom-body">
@@ -1213,7 +1241,7 @@ function CustomLiveDomStage({ customAudit, mode }) {
               <div className="mono" style={{ padding: 10, borderRadius: 8, background: "#fff", fontSize: 12, color: "var(--green-d)" }}>
                 {finding.recommendedCssFix || `${finding.targetSelector} { min-height: 44px; outline-offset: 2px; }`}
               </div>
-              <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--green-d)" }}>Suggested CSS/ARIA improvement (connect GitHub App to open real repo PRs).</p>
+              <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--green-d)" }}>Suggested CSS/ARIA improvement (connect a GitHub repo to generate full pull requests).</p>
             </div>
           </div>
         </div>
@@ -1224,7 +1252,7 @@ function CustomLiveDomStage({ customAudit, mode }) {
   return (
     <div className="live-dom-stage">
       <div className="live-dom-bar">
-        <span>🌐 LIVE PUBLIC HTML SCRAPE · {customAudit.targetUrl}</span>
+        <span>🌐 LIVE PUBLIC HTML · {customAudit.targetUrl}</span>
         <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 8 }}>
           <span className={"badge-pill " + (customAudit.httpStatus === 200 ? "ok" : "warn")}>HTTP {customAudit.httpStatus || "ERR"}</span>
           <span className="badge-pill warn">{customAudit.latencyMs}ms</span>
@@ -1247,10 +1275,10 @@ function CustomLiveDomStage({ customAudit, mode }) {
         <div className={"surface-banner " + (finding.hasDirectPaymentFlow ? "has-pay" : "no-pay")}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <span className="kicker" style={{ color: finding.hasDirectPaymentFlow ? "var(--gold-d)" : "var(--blue-d)" }}>
-              Surface Classifier · {finding.surfaceCategory || "Live Web Surface"}
+              Page Type · {finding.surfaceCategory || "Live Web Surface"}
             </span>
             <span className="badge-pill blue">
-              Revenue Metric: Not Applicable (Public Scrape)
+              Revenue Metric: Not Applicable (Public HTML)
             </span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: "var(--ink2)", lineHeight: 1.45 }}>
@@ -1259,7 +1287,7 @@ function CustomLiveDomStage({ customAudit, mode }) {
         </div>
 
         <div>
-          <div className="kicker" style={{ color: "var(--mute)" }}>Scraped Document Identity</div>
+          <div className="kicker" style={{ color: "var(--mute)" }}>Scraped Page Title &amp; Description</div>
           <h3 className="live-dom-title">{dom.pageTitle || customAudit.hostname}</h3>
           {dom.metaDescription && <p style={{ margin: "4px 0 0", fontSize: 13.5, color: "var(--ink2)" }}>{dom.metaDescription}</p>}
         </div>
@@ -1341,8 +1369,8 @@ function PatchStage({ sc, view, pos }) {
     if (mobile) {
       return (
         <Stage H={600}>
-          <PatchBadge tone="bad" x={4} y={4}>Broken</PatchBadge>
-          <PatchBadge tone="ok" x={324} y={4}>Nano Banana auto-patched</PatchBadge>
+          <PatchBadge tone="bad" x={4} y={4}>Before (Buggy UI)</PatchBadge>
+          <PatchBadge tone="ok" x={324} y={4}>After (Patched UI)</PatchBadge>
           <Frame sc={sc} fixed={false} x={4} y={40} />
           <Frame sc={sc} fixed={true} x={324} y={40} />
         </Stage>
@@ -1350,9 +1378,9 @@ function PatchStage({ sc, view, pos }) {
     }
     return (
       <Stage H={908}>
-        <PatchBadge tone="bad" x={0} y={4}>Broken</PatchBadge>
+        <PatchBadge tone="bad" x={0} y={4}>Before (Buggy UI)</PatchBadge>
         <Frame sc={sc} fixed={false} x={0} y={40} />
-        <PatchBadge tone="ok" x={0} y={460}>Nano Banana auto-patched</PatchBadge>
+        <PatchBadge tone="ok" x={0} y={460}>After (Patched UI)</PatchBadge>
         <Frame sc={sc} fixed={true} x={0} y={496} />
       </Stage>
     );
@@ -1362,8 +1390,8 @@ function PatchStage({ sc, view, pos }) {
   const cut = (pos / 100) * fw;
   return (
     <Stage H={oy + fh + 12}>
-      <PatchBadge tone="bad" x={mobile ? 4 : 0} y={4}>Broken</PatchBadge>
-      <PatchBadge tone="ok" x={mobile ? 330 : 380} y={4}>Nano Banana auto-patched</PatchBadge>
+      <PatchBadge tone="bad" x={mobile ? 4 : 0} y={4}>Before (Buggy UI)</PatchBadge>
+      <PatchBadge tone="ok" x={mobile ? 330 : 380} y={4}>After (Patched UI)</PatchBadge>
       <Frame sc={sc} fixed={false} x={ox} y={oy} />
       <div style={{ position: "absolute", left: ox, top: oy, width: fw, height: fh, clipPath: `inset(0 0 0 ${cut}px)` }}>
         <Frame sc={sc} fixed={true} x={0} y={0} />
@@ -1404,7 +1432,7 @@ function VoicePanel({ voiceObj, typed, row, host }) {
   return (
     <div className="vpanel" style={{ flexDirection: row ? "row" : "column" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: row ? 190 : "100%", flexShrink: 0 }}>
-        <div className="vtag"><span className="live-dot gold" /> Gemini Live · {voiceObj.lang}</div>
+        <div className="vtag"><span className="live-dot gold" /> Voice Bug Capture · {voiceObj.lang}</div>
         <div className="orb-wrap"><span className="orb-ring" /><span className="orb-ring r2" /><div className="orb"><Icon n="mic" size={26} stroke={2.2} /></div></div>
         <Waveform bars={row ? 22 : 30} height={row ? 44 : 34} />
         <div style={{ fontSize: 11, color: "var(--mute)", textAlign: "center", lineHeight: 1.4, marginTop: 4 }}>♪ {voiceObj.cue}</div>
@@ -1419,10 +1447,10 @@ function VoicePanel({ voiceObj, typed, row, host }) {
           ))}
         </div>
         <div className="mapped" style={{ opacity: typed.finished ? 1 : 0.3 }}>
-          <Icon n="link" size={12} /> mapped to <b>{voiceObj.node}</b> · {voiceObj.match}
+          <Icon n="link" size={12} /> linked to element <b>{voiceObj.node}</b> · {voiceObj.match}
         </div>
         <div className="snippet">
-          <div className="snippet-k">1-line customer widget</div>
+          <div className="snippet-k">Optional 1-line customer voice widget</div>
           <code>{snippet}</code>
           <button type="button" onClick={() => doCopy(snippet)} className="mini-btn"><Icon n={copied ? "check" : "copy"} size={11} /> {copied ? "Copied" : "Copy snippet"}</button>
         </div>
@@ -1470,28 +1498,25 @@ function VoiceStage({ sc, active, host, customAudit }) {
 
 /* ═════════════ Exhibit (Left Column) ═════════════ */
 const LENSES = [
-  { id: "vision", label: "Gemini Omni Live Vision", icon: "eye", c: "#2B3BFF", wash: "#E3E7FF", dot: "rgba(43,59,255,.20)" },
-  { id: "patch", label: "Nano Banana Before/After Patch", icon: "sparkles", c: "#007A51", wash: "#D8F5E8", dot: "rgba(0,163,108,.22)" },
-  { id: "voice", label: "Pramana Live Voice Orb", icon: "mic", c: "#9A6B00", wash: "#FFF0C2", dot: "rgba(245,163,0,.30)" },
+  { id: "vision", label: "Visual Bug Detection", icon: "eye", c: "#2B3BFF", wash: "#E3E7FF", dot: "rgba(43,59,255,.20)" },
+  { id: "patch", label: "Before / After UI Fix", icon: "sparkles", c: "#007A51", wash: "#D8F5E8", dot: "rgba(0,163,108,.22)" },
+  { id: "voice", label: "Customer Voice Report", icon: "mic", c: "#9A6B00", wash: "#FFF0C2", dot: "rgba(245,163,0,.30)" },
 ];
 function Exhibit({ sc, mode, setMode, audit, host, customAudit }) {
   const [patchView, setPatchView] = useState("split");
   const [pos, setPos] = useState(50);
-  const [fps, setFps] = useState(60);
   const running = audit.state === "running";
   const isCustom = Boolean(customAudit && customAudit.isCustomUrl);
-
-  useEffect(() => {
-    const id = setInterval(() => setFps(running ? 56 + Math.floor(Math.random() * 4) : 59 + Math.floor(Math.random() * 2)), 900);
-    return () => clearInterval(id);
-  }, [running]);
   const lens = LENSES.find((l) => l.id === mode);
+
   return (
-    <section className="exhibit" aria-label="Multimodal browser sandbox">
+    <section className="exhibit" aria-label="Interactive page inspector">
       <header className="ex-head">
         <div>
           <div className="kicker" style={{ color: "var(--blue)" }}>
-            Fig. 1 · {isCustom ? `Public HTML/DOM Inspector (${customAudit.hostname})` : "Connected Sandbox Benchmark"}
+            {isCustom
+              ? `Live Public HTML Inspector · ${customAudit.hostname}`
+              : `Worked Example Preview · ${sc.variant === "desktop" ? "ScaleGrid (Our Demo Billing App)" : "ZestKart (Our Demo Storefront)"}`}
           </div>
           <p className="caption">
             {isCustom
@@ -1500,11 +1525,10 @@ function Exhibit({ sc, mode, setMode, audit, host, customAudit }) {
           </p>
         </div>
         <div className="chips">
-          <span className="chip mono">{isCustom ? `LIVE SCRAPE · HTTP ${customAudit.httpStatus}` : `BENCHMARK FIXTURE · ${sc.viewport}`}</span>
-          <span className="chip mono"><i className="dot" style={{ background: fps >= 59 ? "var(--green)" : "var(--gold)" }} /> {isCustom ? `${customAudit.latencyMs}ms` : `${fps} FPS`}</span>
+          <span className="chip mono">{isCustom ? `LIVE PUBLIC HTML · HTTP ${customAudit.httpStatus}` : `CONNECTED SANDBOX EXAMPLE · ${sc.viewport}`}</span>
         </div>
       </header>
-      <div className="lenses" role="tablist" aria-label="Sandbox lens">
+      <div className="lenses" role="tablist" aria-label="Inspection view">
         {LENSES.map((l) => (
           <button key={l.id} role="tab" aria-selected={mode === l.id} type="button" onClick={() => setMode(l.id)} className="lens"
             style={mode === l.id ? { background: l.wash, color: l.c, boxShadow: `inset 0 -3px 0 ${l.c}` } : undefined}>
@@ -1521,9 +1545,9 @@ function Exhibit({ sc, mode, setMode, audit, host, customAudit }) {
           </div>
           {patchView === "swipe" && (
             <label className="swipe">
-              <span style={{ color: "var(--red-d)" }}>Broken</span>
+              <span style={{ color: "var(--red-d)" }}>Before</span>
               <input id="swipe-range" type="range" min="0" max="100" value={pos} onChange={(e) => setPos(Number(e.target.value))} className="range" aria-label="Reveal patched UI" />
-              <span style={{ color: "var(--green-d)" }}>Patched</span>
+              <span style={{ color: "var(--green-d)" }}>After</span>
             </label>
           )}
         </div>
@@ -1544,13 +1568,13 @@ function Exhibit({ sc, mode, setMode, audit, host, customAudit }) {
           <span>
             {isCustom
               ? <>Public HTML parse of <b>{host}</b> ({customAudit.scrapedDom?.accessibilityMetrics?.estimatedDomNodes || 14} static nodes · Revenue metric N/A).</>
-              : <>Omni is reading <b>{host}</b> on {sc.device}. {sc.boxes.length} regions flagged.</>}
+              : <>Inspecting demo storefront <b>{host}</b> on {sc.device}. {sc.boxes.length} UI issues highlighted.</>}
           </span>
         )}
-        {mode === "patch" && <span>{isCustom ? `Suggested snippet for ${customAudit.customFinding?.targetSelector}` : `What changed: ${sc.changes.join(" · ")}`}</span>}
-        {mode === "voice" && <span>{isCustom ? `Public DOM inspector pinned to ${customAudit.customFinding?.targetSelector}.` : `Customer voice pinned to ${sc.voice.node}.`}</span>}
+        {mode === "patch" && <span>{isCustom ? `Suggested snippet for ${customAudit.customFinding?.targetSelector}` : `Fix applied: ${sc.changes.join(" · ")}`}</span>}
+        {mode === "voice" && <span>{isCustom ? `Voice transcript mapped to ${customAudit.customFinding?.targetSelector}.` : `Shopper voice report linked to ${sc.voice.node}.`}</span>}
         <span className="legend">
-          <i style={{ background: "var(--red)" }} /> issue <i style={{ background: "var(--green)" }} /> verified <i style={{ background: "var(--blue)" }} /> evidence <i style={{ background: "var(--gold)" }} /> voice
+          <i style={{ background: "var(--red)" }} /> issue <i style={{ background: "var(--green)" }} /> fixed <i style={{ background: "var(--blue)" }} /> element <i style={{ background: "var(--gold)" }} /> voice
         </span>
       </footer>
     </section>
@@ -1665,12 +1689,12 @@ function LeakStory({ sc, open, onToggle, ready, customAudit }) {
     <Story
       id="story-leak"
       tone={storyTone}
-      kicker={isCustom ? "Static HTML & A11y Telemetry · Revenue Metric N/A" : "The leak (Connected Benchmark)"}
-      title={isCustom ? finding.anomalyTitle : "Critical revenue leak detected"}
+      kicker={isCustom ? "1. What We Found · Public HTML & A11y" : "1. What Broke & Why (Worked Demo Example)"}
+      title={isCustom ? finding.anomalyTitle : sc.short}
       open={open}
       onToggle={onToggle}
       ready={ready}
-      right={<span className={badgeClass}>{isCustom ? `Severity: ${sev}` : "Critical"}</span>}
+      right={<span className={badgeClass}>{isCustom ? `Severity: ${sev}` : "Demo Blocker"}</span>}
     >
       <div className="bignum-row">
         <div>
@@ -1682,7 +1706,7 @@ function LeakStory({ sc, open, onToggle, ready, customAudit }) {
           ) : (
             <>
               <div className="bignum">−{mainMetricAnim.toFixed(1)}<span>%</span></div>
-              <div className="bignum-cap">Estimated conversion drop</div>
+              <div className="bignum-cap">Modeled demo conversion drop</div>
             </>
           )}
         </div>
@@ -1698,7 +1722,7 @@ function LeakStory({ sc, open, onToggle, ready, customAudit }) {
             </div>
           ) : (
             <>
-              <div className="leakline">About <b>${fmt(usd)}</b> at risk each month</div>
+              <div className="leakline">Modeled <b>${fmt(usd)}/mo</b> impact (demo storefront benchmark)</div>
               <Spark vals={sparkValues} mark={7} color="#F0431F" />
               <div className="spark-axis"><span>14 days ago</span><span>deploy</span><span>today</span></div>
             </>
@@ -1707,7 +1731,7 @@ function LeakStory({ sc, open, onToggle, ready, customAudit }) {
       </div>
       <p className="lede-sm">{summaryText}</p>
       <div className="trace">
-        <div className="trace-head"><Icon n="terminal" size={13} /> Root cause · Gemma 4 31B log triage · Google AI Studio structured JSON</div>
+        <div className="trace-head"><Icon n="terminal" size={13} /> Root-cause log summary</div>
         <div className="trace-body">
           {traceLines.map((l, i) => (
             <div key={i} className="trace-line">
@@ -1717,10 +1741,10 @@ function LeakStory({ sc, open, onToggle, ready, customAudit }) {
             </div>
           ))}
         </div>
-        <button type="button" onClick={() => setJson((j) => !j)} className="trace-toggle">{json ? "Hide" : "Show"} structured JSON <Icon n="arrow" size={12} /></button>
+        <button type="button" onClick={() => setJson((j) => !j)} className="trace-toggle">{json ? "Hide" : "Show"} technical JSON &amp; spec metadata <Icon n="arrow" size={12} /></button>
         {json && <pre className="json">{JSON.stringify(isCustom ? finding : sc.json, null, 2)}</pre>}
       </div>
-      <div className="sub-k">{isCustom ? "Server-Side Scrape Timeline" : "Session replay"}</div>
+      <div className="sub-k">{isCustom ? "Server-Side Scrape Timeline" : "12-Second Demo Session Timeline"}</div>
       <Scrubber key={isCustom ? customAudit.hostname : sc.id} events={replayEvents} />
     </Story>
   );
@@ -1732,8 +1756,8 @@ function TrailStory({ sc, open, onToggle, ready, customAudit }) {
   const skillsList = isCustom && customAudit.customFinding?.skillsTrace ? customAudit.customFinding.skillsTrace : sc.skills;
   const total = skillsList.reduce((a, s) => a + (parseFloat(s.dur) || 0.3), 0);
   return (
-    <Story id="story-trail" tone="blue" kicker="The trail" title="Google Agent Skills execution trace" open={open} onToggle={onToggle} ready={ready}
-      right={<span className="sev blue">{skillsList.length}/{skillsList.length} steps · {total.toFixed(2)}s</span>}>
+    <Story id="story-trail" tone="blue" kicker="2. How Pramana Found It" title="4-step inspection trail" open={open} onToggle={onToggle} ready={ready}
+      right={<span className="sev blue">{skillsList.length} steps · {total.toFixed(2)}s</span>}>
       <div className="durbar" aria-hidden="true">
         {skillsList.map((s, i) => <span key={s.name} style={{ flex: parseFloat(s.dur) || 0.3, background: ["#2B3BFF", "#5B68FF", "#98A1FF", "#00A36C"][i % 4] }} title={`${s.name} ${s.dur}`} />)}
       </div>
@@ -1751,7 +1775,7 @@ function TrailStory({ sc, open, onToggle, ready, customAudit }) {
           </li>
         ))}
       </ul>
-      <p className="foot-note">Tap any skill row to inspect its execution log and scope.</p>
+      <p className="foot-note">Click any step above to view its underlying technical command log.</p>
     </Story>
   );
 }
@@ -1763,7 +1787,7 @@ function PrStory({ sc, open, onToggle, ready, merge, setMerge, customAudit }) {
 
   const p = isCustom
     ? {
-        branch: "No GitHub Repo Connected (Public URL Mode)",
+        branch: "No GitHub Repo Connected (Public HTML Mode)",
         title: `Suggested DOM/ARIA snippet for ${customAudit.hostname}`,
         file: finding.diffFile || `suggested-snippet-${customAudit.hostname}.html`,
         hunk: "/* Copyable HTML/CSS Suggestion */",
@@ -1791,21 +1815,21 @@ function PrStory({ sc, open, onToggle, ready, merge, setMerge, customAudit }) {
     <Story
       id="story-pr"
       tone="green"
-      kicker={isCustom ? "Suggested Markup / CSS · No Repo Connected" : "The fix (Sandbox Benchmark Repo)"}
-      title={isCustom ? "Suggested DOM & ARIA Snippet (Copyable)" : "Self-healed pull request ready"}
+      kicker={isCustom ? "3. Proposed Fix · Copyable Snippet" : "3. Proposed Code Fix (Demo Storefront Repo)"}
+      title={isCustom ? "Suggested HTML & CSS Snippet" : "Sample Pull Request Diff"}
       open={open}
       onToggle={onToggle}
       ready={ready}
       right={
         <span className="sev green">
-          {isCustom ? "Snippet Only (No Auto-PR)" : merge === "merged" ? "Simulated Merge" : "Sandbox PR"}
+          {isCustom ? "Snippet Only" : merge === "merged" ? "Demo Merged" : "Sample Diff"}
         </span>
       }
     >
       {isCustom && (
         <div className="surface-banner no-pay" style={{ marginBottom: 14 }}>
           <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink2)" }}>
-            <b>Why isn&apos;t this a live GitHub Pull Request?</b> You audited an external public URL (<code>{customAudit.hostname}</code>) without connecting a GitHub repository. Pramana does not fabricate PR numbers or pretend to merge code into third-party repos. Copy the suggested snippet below, or switch to a Connected Sandbox Benchmark to preview AST-verified PR generation.
+            <b>Why isn&apos;t this a GitHub Pull Request?</b> You audited an external public URL (<code>{customAudit.hostname}</code>) without connecting a repository. Pramana never fabricates PR numbers on third-party sites—copy the suggested snippet below, or click a Worked Example above to see how connected repo diffs work.
           </p>
         </div>
       )}
@@ -1836,13 +1860,13 @@ function PrStory({ sc, open, onToggle, ready, merge, setMerge, customAudit }) {
           <div className="merged" role="status">
             <div className="stamp">Merged</div>
             <div>
-              <div className="merged-t">✅ Simulated Sandbox Merge · CI Passed · Audit Cost: $0.024</div>
-              <div className="merged-s">Benchmark PR #{sc.prn} verified against sandbox AST whitelist (INV-04).</div>
+              <div className="merged-t">✅ Simulated Demo Merge Complete (ZestKart Sandbox Repo)</div>
+              <div className="merged-s">Sample diff verified against the connected demo storefront repository.</div>
             </div>
           </div>
         ) : (
           <button type="button" onClick={doMerge} disabled={merge === "merging"} className="merge-btn">
-            {merge === "merging" ? (<><span className="spinner" /> Running Sandbox CI · 14/14 checks…</>) : (<><Icon n="merge" size={17} /> Simulate Sandbox Merge → Benchmark PR #{sc.prn}</>)}
+            {merge === "merging" ? (<><span className="spinner" /> Verifying demo repo checks…</>) : (<><Icon n="merge" size={17} /> Simulate Demo Merge (Sandbox Repo)</>)}
           </button>
         )}
         <div className="pr-foot"><span>{p.title}</span>{!isCustom && merge === "merged" && <button type="button" onClick={() => setMerge("idle")} className="reset"><Icon n="rotate" size={11} /> Reset demo</button>}</div>
@@ -1851,13 +1875,13 @@ function PrStory({ sc, open, onToggle, ready, merge, setMerge, customAudit }) {
   );
 }
 
-/* ═════════════ In-Page Editorial Proof Certificate View ═════════════ */
+/* ═════════════ In-Page Shareable Audit Summary View ═════════════ */
 function InPageCertificateView({ sc, site, customAudit, setPageView }) {
   const [copied, doCopy] = useCopy();
   const isCustom = Boolean(customAudit && customAudit.isCustomUrl);
   const finding = customAudit?.customFinding || {};
   const dom = customAudit?.scrapedDom || {};
-  const title = isCustom ? finding.anomalyTitle : `${site.brand} — Benchmark #${sc.prn}: ${sc.short}`;
+  const title = isCustom ? finding.anomalyTitle : `Worked Example (${site.brand}, our demo store): ${sc.short}`;
   const diffLines = isCustom ? (finding.diffLines || sc.pr.diff) : sc.pr.diff;
   const rawDiffText = diffLines.map((l) => `${l.t === "add" ? "+" : l.t === "del" ? "-" : " "} ${l.c}`).join("\n");
 
@@ -1867,7 +1891,7 @@ function InPageCertificateView({ sc, site, customAudit, setPageView }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
           <div>
             <span className="kicker" style={{ color: "var(--blue-d)" }}>
-              {isCustom ? "Public HTML Audit Report · Unauthenticated Scrape" : `Sandbox Benchmark Certificate · PR #${sc.prn}`}
+              {isCustom ? "Shareable Public HTML Audit Summary" : "Shareable Worked Example Summary (Our Connected Demo Storefront)"}
             </span>
             <h2 className="headline" style={{ fontSize: "clamp(26px, 3.4vw, 44px)", marginTop: 8 }}>{title}</h2>
             <p className="standfirst" style={{ marginTop: 10 }}>
@@ -1875,16 +1899,16 @@ function InPageCertificateView({ sc, site, customAudit, setPageView }) {
             </p>
           </div>
           <button type="button" onClick={() => setPageView("command")} className="mini-btn" style={{ padding: "10px 16px", fontSize: 12 }}>
-            ← Back to Live Command Center
+            ← Back to Audit Workstation
           </button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 22 }}>
           {[
-            ["Audit Mode", isCustom ? "LIVE PUBLIC HTML SCRAPE" : "BENCHMARK FIXTURE (SANDBOX)"],
-            ["Surface Classification", isCustom ? finding.surfaceCategory : "Connected Checkout Sandbox"],
-            ["Revenue / Conversion Metric", isCustom ? "Not Applicable (Public Scrape)" : `${sc.drop} (${sc.leakUSD}/mo benchmark)`],
-            ["Calibrated Verdict", isCustom ? `${finding.severity} (${finding.domHealthScore}/100 DOM Score across ${dom.accessibilityMetrics?.estimatedDomNodes || 14} nodes)` : "CRITICAL (Reproduced 3/3)"],
+            ["Execution Mode", isCustom ? "LIVE PUBLIC HTML" : "CONNECTED SANDBOX EXAMPLE"],
+            ["Page Type", isCustom ? finding.surfaceCategory : "Connected Demo Storefront (ZestKart)"],
+            ["Revenue / Conversion Metric", isCustom ? "Not Applicable (Public HTML)" : `${sc.drop} (Modeled demo benchmark)`],
+            ["Audit Verdict", isCustom ? `${finding.severity} (${finding.domHealthScore}/100 DOM Score across ${dom.accessibilityMetrics?.estimatedDomNodes || 14} nodes)` : "Demo Checkout Blocker (Reproduced 3/3)"],
           ].map(([k, v]) => (
             <div key={k} style={{ background: "var(--paper)", border: "1px solid var(--rule)", borderRadius: 14, padding: 14 }}>
               <div className="kicker" style={{ color: "var(--mute)", marginBottom: 4 }}>{k}</div>
@@ -1896,7 +1920,7 @@ function InPageCertificateView({ sc, site, customAudit, setPageView }) {
 
       <section className="story green" style={{ padding: 28 }}>
         <div className="kicker" style={{ color: "var(--green-d)" }}>
-          {isCustom ? `Suggested HTML/CSS Snippet · ${finding.diffFile}` : `AST-Verified Benchmark Patch · ${sc.pr.file}`}
+          {isCustom ? `Suggested HTML/CSS Snippet · ${finding.diffFile}` : `Sample Repository Patch · ${sc.pr.file}`}
         </div>
         <div className="diff" style={{ marginTop: 12 }}>
           <div className="diff-scroll">
@@ -1921,38 +1945,72 @@ function InPageCertificateView({ sc, site, customAudit, setPageView }) {
 }
 
 /* ═════════════ Hero + Audit Desk ═════════════ */
-function AuditDesk({ sid, setSid, url, setUrl, audit, runAudit, isPreset, apiError }) {
+function AuditDesk({ sid, selectExample, url, setUrl, audit, runAudit, quickTryUrl, isCustom, hasSelectedExample, apiError, inputRef }) {
   const running = audit.state === "running";
   return (
-    <section className="desk" aria-label="Zero-auth audit bar">
+    <section className="desk" aria-label="Zero-auth URL audit desk">
       <div className="desk-k">
-        <span>Audit desk · accepts url or target_url</span>
-        <span>{isPreset ? "MODE: BENCHMARK FIXTURE" : "MODE: LIVE HTML SCRAPE"}</span>
+        <span>Try Pramana on any public URL</span>
+        <span>{isCustom ? "LIVE PUBLIC HTML" : "CONNECTED SANDBOX EXAMPLE"}</span>
       </div>
       <label htmlFor="audit-url" className="sr">Website URL to audit</label>
       <div className="desk-field">
         <Icon n="globe" size={17} />
-        <input id="audit-url" name="target_url" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runAudit(); }} placeholder="https://example.com, https://google.com, or https://github.com" spellCheck="false" autoComplete="off" />
+        <input
+          ref={inputRef}
+          id="audit-url"
+          name="target_url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") runAudit(); }}
+          placeholder="Paste any URL (e.g., https://github.com or https://stripe.com)..."
+          spellCheck="false"
+          autoComplete="off"
+        />
+      </div>
+      <div className="quick-urls">
+        <span>1-click live test:</span>
+        {[
+          ["google.com", "https://www.google.com"],
+          ["github.com", "https://github.com"],
+          ["example.com", "https://example.com"],
+        ].map(([label, target]) => (
+          <button key={label} type="button" className="quick-chip" onClick={() => quickTryUrl(target)}>
+            {label}
+          </button>
+        ))}
       </div>
       {apiError && (
         <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 10, background: "var(--red-w)", color: "var(--red-d)", fontSize: 12, fontWeight: 700 }}>
           ⚠ {apiError}
         </div>
       )}
-      <button type="button" onClick={runAudit} disabled={running} className="desk-run">
-        {running ? (<><span className="spinner" /> Auditing {parseSite(url).host}…</>) : (<>Run Autonomous Audit <Icon n="zap" size={17} /></>)}
+      <button type="button" onClick={() => runAudit()} disabled={running} className="desk-run">
+        {running ? (
+          <><span className="spinner" /> Auditing {url ? parseSite(url).host : "page"}…</>
+        ) : (
+          <>Audit This URL <Icon n="zap" size={17} /></>
+        )}
       </button>
-      <div className="desk-sub">Or load a connected checkout benchmark fixture</div>
-      <div role="radiogroup" aria-label="Scenario" className="scn-list">
+
+      <div className="desk-sub">Or explore a full worked example (our connected demo storefront)</div>
+      <div role="radiogroup" aria-label="Worked Examples" className="scn-list">
         {SCENARIOS.map((s, i) => (
-          <button key={s.id} type="button" role="radio" aria-checked={isPreset && sid === i} onClick={() => setSid(i)} className={"scn" + (isPreset && sid === i ? " on" : "")}>
+          <button
+            key={s.id}
+            type="button"
+            role="radio"
+            aria-checked={!isCustom && hasSelectedExample && sid === i}
+            onClick={() => selectExample(i)}
+            className={"scn" + (!isCustom && hasSelectedExample && sid === i ? " on" : "")}
+          >
             <span className="scn-em" aria-hidden="true">{s.emoji}</span>
             <span>{s.label}</span>
           </button>
         ))}
       </div>
       <p className="desk-note">
-        <b>Scope &amp; Privacy Disclosure:</b> When auditing a custom URL, <code>/api/audit</code> fetches the public HTML only (rate-limited to 30 req/min/IP; no credentials sent). It never invents conversion/revenue numbers on non-checkout sites and never claims to merge PRs into unconnected repositories.
+        <b>Zero login, no SDK:</b> Public URLs are audited using live public HTML only—we never invent revenue numbers on non-checkout sites or open pull requests on unconnected repos.
       </p>
     </section>
   );
@@ -1963,16 +2021,16 @@ function PressStrip({ sc, audit, customAudit }) {
   const isCustom = Boolean(customAudit && customAudit.isCustomUrl);
   const steps = isCustom
     ? [
-        `Fetching public HTML from ${customAudit.hostname}...`,
-        "Checking surface type & auth/CAPTCHA limitations...",
-        "Auditing static DOM, inputs & image alt attributes...",
-        "Generating suggested HTML/ARIA snippet (No repo PR)...",
+        `Fetching live public HTML from ${customAudit.hostname}...`,
+        "Checking page type & auth/CAPTCHA limitations...",
+        "Inspecting buttons, form inputs & image alt attributes...",
+        "Drafting copyable HTML/CSS suggestion...",
       ]
     : [
-        "Gemini Omni scanning sandbox DOM...",
-        "Gemma 4 31B filtering HAR traces...",
-        "Nano Banana synthesizing visual patch...",
-        `Google Antigravity preparing Benchmark PR #${sc.prn}...`,
+        "Scanning demo storefront layout & viewport...",
+        "Correlating network logs with DOM changes...",
+        "Rendering before/after visual UI fix...",
+        "Drafting sample pull request diff...",
       ];
   if (!running && !audit.ran) return null;
   return (
@@ -1992,8 +2050,8 @@ function PressStrip({ sc, audit, customAudit }) {
       {!running && (
         <div className="press-done">
           {isCustom
-            ? `Public HTML scrape of ${customAudit.hostname} complete in ${customAudit.latencyMs}ms · HTTP ${customAudit.httpStatus} · Severity: ${customAudit.customFinding?.severity} (${customAudit.customFinding?.domHealthScore}/100) · Revenue Metric: N/A`
-            : `Sandbox benchmark complete in 3.0s · 3 anomalies · Benchmark PR #${sc.prn} ready · $0.024 compute`}
+            ? `Live HTML audit of ${customAudit.hostname} complete in ${customAudit.latencyMs}ms · HTTP ${customAudit.httpStatus} · Verdict: ${customAudit.customFinding?.severity} (${customAudit.customFinding?.domHealthScore}/100) · Revenue Metric: N/A`
+            : `Worked example loaded (${sc.short}) · 3 UI issues reproduced · Sample diff ready`}
         </div>
       )}
     </section>
@@ -2001,7 +2059,11 @@ function PressStrip({ sc, audit, customAudit }) {
 }
 
 function CommandCenter(props) {
-  const { sc, sid, setSid, url, setUrl, audit, runAudit, mode, setMode, merge, setMerge, open, setOpen, site, customAudit, liveHook, showQuotas, apiError } = props;
+  const {
+    sc, sid, selectExample, resetToProductOverview, hasSelectedExample,
+    url, setUrl, audit, runAudit, quickTryUrl, mode, setMode, merge, setMerge,
+    open, setOpen, site, customAudit, liveHook, showQuotas, apiError, inputRef,
+  } = props;
   const running = audit.state === "running";
   const step = audit.step;
   const ready = { leak: !running || step >= 2, trail: !running || step >= 3, pr: !running || step >= 4 };
@@ -2013,21 +2075,22 @@ function CommandCenter(props) {
 
   return (
     <div>
+      {/* Unmistakable Mode Badge: LIVE PUBLIC HTML vs CONNECTED SANDBOX EXAMPLE */}
       <div className={"mode-banner " + (isCustom ? "live" : "fixture")} role="status">
         <div>
           <span className={"mode-pill " + (isCustom ? "live" : "fixture")}>
-            {isCustom ? "🌐 LIVE PUBLIC HTML SCRAPE" : "🧪 BENCHMARK FIXTURE (SANDBOX)"}
+            {isCustom ? "🌐 LIVE PUBLIC HTML" : "🧪 CONNECTED SANDBOX EXAMPLE"}
           </span>{" "}
           <b style={{ marginLeft: 6 }}>
             {isCustom
-              ? `Auditing live public markup of ${customAudit.hostname}`
-              : `Pre-recorded connected storefront simulation (${sc.specId})`}
+              ? `Inspecting live public HTML of ${customAudit.hostname}`
+              : `Worked Example below uses ${sc.variant === "desktop" ? "ScaleGrid (our fictional demo billing app)" : "ZestKart (our fictional demo storefront)"}`}
           </b>
         </div>
         <span className="mono" style={{ fontSize: 11.5, color: "var(--ink2)" }}>
           {isCustom
-            ? "Revenue/Conversion: N/A (Unauthenticated) · PR Merge: Disabled (No Repo Connected)"
-            : "Full Browser + HAR + Repo AST Whitelist Connected"}
+            ? "Public HTML Only · No Revenue Fabricated · Copyable Snippet"
+            : "Paste any URL in the blue box to switch to Live Public HTML mode"}
         </span>
       </div>
 
@@ -2039,44 +2102,121 @@ function CommandCenter(props) {
 
       <section className="hero">
         <div className="hero-copy">
-          <div className="kicker" style={{ color: isCustom ? "var(--blue-d)" : "var(--red-d)" }}>
-            <i className="pulse-dot" /> {isCustom ? `Public HTML/DOM Audit · ${site.host} · ${finding.surfaceCategory}` : `Sandbox Benchmark · ${site.host}`}
-          </div>
-          <h1 className="headline" key={sc.id + site.brand + (isCustom ? customAudit.hostname + sev : "")}>
-            {isCustom ? (
-              <>
-                Public HTML audit of {site.brand}:{" "}
-                <em className={sev === "PASS" ? "green" : "blue"}>{sev}</em>{" "}
-                ({finding.domHealthScore ?? 94}/100 DOM readiness across {dom.accessibilityMetrics?.estimatedDomNodes || 14} nodes).
-              </>
-            ) : (
-              sc.headline(site.brand, sc.leakUSD)
-            )}
-          </h1>
-          <p className="standfirst">
+          {!isCustom && !hasSelectedExample ? (
+            <>
+              <div className="kicker" style={{ color: "var(--blue-d)" }}>
+                <i className="pulse-dot" /> Pramana AI · Zero-Login Checkout &amp; Mobile UX Auditor
+              </div>
+              <h1 className="headline">
+                Paste any checkout or web URL. We <em className="blue">find the bug</em> and draft the fix.
+              </h1>
+              <p className="standfirst">
+                Pramana inspects web pages for mobile layout overlaps, clipped buttons, broken payment states, and accessibility traps—then drafts a clean HTML/CSS fix without requiring a login, SDK, or brittle test selectors.
+              </p>
+              <div className="scope-grid" aria-label="What Pramana can and cannot do today">
+                <div className="scope-card live-col">
+                  <span className="kicker" style={{ color: "var(--blue-d)" }}>🌐 Any Public URL (Live Mode)</span>
+                  <h3>Live Public HTML &amp; A11y Audit</h3>
+                  <p>
+                    Fetches live public HTML in real time, checks interactive buttons, form inputs, ARIA labels, and image alt tags, and drafts a copyable snippet. <b>Never</b> invents revenue numbers on non-checkout pages or opens unsolicited PRs.
+                  </p>
+                </div>
+                <div className="scope-card demo-col">
+                  <span className="kicker" style={{ color: "var(--gold-d)" }}>🧪 Worked Examples (Connected Mode)</span>
+                  <h3>Connected Demo Storefront (ZestKart)</h3>
+                  <p>
+                    Shows what Pramana produces once connected to your staging storefront and GitHub repository: full mobile viewport replay, network log correlation, modeled revenue impact, and a reviewable pull request diff.
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="kicker" style={{ color: isCustom ? "var(--blue-d)" : "var(--red-d)" }}>
+                <i className="pulse-dot" />{" "}
+                {isCustom
+                  ? `Live Public HTML Audit · ${customAudit.hostname} · ${finding.surfaceCategory}`
+                  : `Worked Example · ${site.brand} (Our Connected Demo Storefront)`}
+              </div>
+              <h1 className="headline" key={sc.id + site.brand + (isCustom ? customAudit.hostname + sev : "")}>
+                {isCustom ? (
+                  <>
+                    Public HTML audit of {site.brand}:{" "}
+                    <em className={sev === "PASS" ? "green" : "blue"}>{sev}</em>{" "}
+                    ({finding.domHealthScore ?? 94}/100 DOM readiness across {dom.accessibilityMetrics?.estimatedDomNodes || 14} nodes).
+                  </>
+                ) : (
+                  sc.headline(site.brand, sc.leakUSD)
+                )}
+              </h1>
+              <p className="standfirst">
+                {isCustom ? finding.summary : sc.summary}
+              </p>
+              <div className="byline">
+                {isCustom ? (
+                  <>
+                    <b>HTTP {customAudit.httpStatus} ({customAudit.latencyMs}ms)</b>
+                    <span>·</span>
+                    <span>{dom.accessibilityMetrics?.estimatedDomNodes || 14} static nodes ({dom.htmlKilobytes || 1.2} KB)</span>
+                    <span>·</span>
+                    <span>Revenue Metric: N/A (Public HTML Mode)</span>
+                  </>
+                ) : (
+                  <>
+                    <b>Connected Sandbox Example</b>
+                    <span>·</span>
+                    <span>{sc.device}</span>
+                    <span>·</span>
+                    <span>ZestKart / ScaleGrid are our fictional demo apps</span>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={resetToProductOverview}
+                  className="chip mono"
+                  style={{ marginLeft: 6, cursor: "pointer", color: "var(--blue-d)", borderColor: "var(--blue)" }}
+                >
+                  ← Back to Pramana Overview
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+        <AuditDesk
+          sid={sid}
+          selectExample={selectExample}
+          url={url}
+          setUrl={setUrl}
+          audit={audit}
+          runAudit={runAudit}
+          quickTryUrl={quickTryUrl}
+          isCustom={isCustom}
+          hasSelectedExample={hasSelectedExample}
+          apiError={apiError}
+          inputRef={inputRef}
+        />
+      </section>
+
+      <PressStrip sc={sc} audit={audit} customAudit={customAudit} />
+
+      <div className="section-divider">
+        <div>
+          <span className="kicker" style={{ color: isCustom ? "var(--blue-d)" : "var(--gold-d)" }}>
+            {isCustom ? "LIVE PUBLIC HTML AUDIT RESULTS" : "WORKED EXAMPLE WALKTHROUGH (CONNECTED SANDBOX)"}
+          </span>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", marginTop: 2 }}>
             {isCustom
-              ? finding.summary
-              : "Pramana opened the benchmark storefront in an isolated container, correlated the HAR failure with the repository AST, and prepared a sandbox pull request."}
-          </p>
-          <div className="byline">
-            {isCustom ? (
-              <>
-                <b>HTTP {customAudit.httpStatus} ({customAudit.latencyMs}ms)</b>
-                <span>·</span>
-                <span>{dom.accessibilityMetrics?.estimatedDomNodes || 14} static nodes ({dom.htmlKilobytes || 1.2} KB)</span>
-                <span>·</span>
-                <span>Revenue Metric: N/A (No Checkout Telemetry)</span>
-              </>
-            ) : (
-              <>
-                <b>Benchmark Fixture ({sc.specId})</b><span>·</span><span>Cloud Run, asia-south1</span><span>·</span><span>Sandbox PR #{sc.prn}</span>
-              </>
-            )}
+              ? `Live inspection of ${customAudit.targetUrl} — static DOM, accessibility & copyable snippet`
+              : `${sc.label} — showing how Pramana works when connected to a staging storefront & GitHub repo`}
           </div>
         </div>
-        <AuditDesk sid={sid} setSid={setSid} url={url} setUrl={setUrl} audit={audit} runAudit={runAudit} isPreset={site.isPreset} apiError={apiError} />
-      </section>
-      <PressStrip sc={sc} audit={audit} customAudit={customAudit} />
+        {!isCustom && (
+          <span className="badge-pill warn">
+            Demo Storefront Benchmark · Paste any URL above to audit a live site
+          </span>
+        )}
+      </div>
+
       <div className="grid">
         <div className="col-l"><Exhibit sc={sc} mode={mode} setMode={setMode} audit={audit} url={url} host={site.host} customAudit={customAudit} /></div>
         <div className="col-r">
@@ -2090,34 +2230,49 @@ function CommandCenter(props) {
 }
 
 /* ═════════════ Masthead & Colophon ═════════════ */
-function Masthead({ sc, site, customAudit, pageView, setPageView }) {
-  const date = useMemo(() => new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" }), []);
+function Masthead({ site, customAudit, pageView, setPageView, resetToProductOverview }) {
   const isCustom = Boolean(customAudit && customAudit.isCustomUrl);
   return (
     <header className="mast">
       <div className="gutter">
         <div className="mast-top">
           <span>
-            Vol. 01 · {isCustom ? `Public Scrape (${site.host})` : `Benchmark Issue #${sc.prn}`} · {date}
+            Pramana AI · Checkout &amp; Mobile UX Auditor · Zero Login Required
           </span>
           <span className="status">
-            <i className="live-dot" /> {isCustom ? `Live HTML Scraper · HTTP ${customAudit.httpStatus} · ${customAudit.latencyMs}ms` : "Sandbox Fixture Engine · 18ms"}
+            <i className="live-dot" />{" "}
+            {isCustom
+              ? `Live Public HTML Mode · ${customAudit.hostname} (HTTP ${customAudit.httpStatus} · ${customAudit.latencyMs}ms)`
+              : "Ready · Live Public HTML Inspector + Connected Demo Storefront"}
           </span>
         </div>
         <div className="mast-main">
-          <div className="brand">
-            <h1 className="wordmark">Pramana<em>AI</em></h1>
-            <div className="brand-side">
-              <span className="deva" lang="sa">प्रमाण</span>
-              <span className="gloss">verifiable proof · by Team Vimarsha</span>
+          <div className="brand-block">
+            <div className="brand" style={{ cursor: "pointer" }} onClick={resetToProductOverview}>
+              <h1 className="wordmark">Pramana<em>AI</em></h1>
+              <div className="brand-side">
+                <span className="deva" lang="sa">प्रमाण</span>
+                <span className="gloss">valid evidence · by Team Vimarsha</span>
+              </div>
             </div>
+            <p className="brand-promise">
+              Pramana finds conversion-killing bugs on checkout pages and drafts the fix.
+            </p>
           </div>
           <nav aria-label="Primary" className="tabs">
             <button type="button" onClick={() => setPageView("command")} className="tab" aria-selected={pageView === "command"}>
-              <Icon n="zap" size={16} /><span><b>Live Command Center</b><small>{isCustom ? `Public HTML audit (${site.host})` : "Connected checkout sandbox"}</small></span>
+              <Icon n="zap" size={16} />
+              <span>
+                <b>Audit Workstation</b>
+                <small>{isCustom ? `Auditing ${site.host}` : "Paste any URL or explore an example"}</small>
+              </span>
             </button>
             <button type="button" onClick={() => setPageView("certificate")} className="tab" aria-selected={pageView === "certificate"}>
-              <Icon n="lock" size={16} /><span><b>Verifiable Audit Certificate</b><small>Summary &amp; snippet for {site.brand}</small></span>
+              <Icon n="lock" size={16} />
+              <span>
+                <b>Shareable Audit Summary</b>
+                <small>{isCustom ? `Report & snippet for ${site.brand}` : `Example summary (${site.brand} demo)`}</small>
+              </span>
             </button>
           </nav>
         </div>
@@ -2133,30 +2288,33 @@ function Colophon() {
       <div className="gutter">
         <div className="colo-grid">
           <div>
-            <div className="colo-k">Models</div>
+            <div className="colo-k">AI Models Used</div>
             <ul>{STACK_MODELS.map(([n, s]) => <li key={n}><i style={{ background: "#7C8AFF" }} /><b>{n}</b><span>{s}</span></li>)}</ul>
           </div>
           <div>
-            <div className="colo-k">Tools &amp; cloud</div>
+            <div className="colo-k">Developer Tools &amp; Cloud</div>
             <ul>{STACK_TOOLS.map(([n, s]) => <li key={n}><i style={{ background: "#FFB400" }} /><b>{n}</b><span>{s}</span></li>)}</ul>
           </div>
           <div>
-            <div className="colo-k">Unit economics</div>
-            <div className="colo-num">$0.024<small> per audit</small></div>
-            <div className="colo-num">86%<small> gross margin</small></div>
-            <p className="colo-fine">Compute Cost: $0.024 / audit · Gross Margin: 86%</p>
+            <div className="colo-k">Estimated Audit Cost</div>
+            <div className="colo-num">$0.024<small> per full audit</small></div>
+            <div className="colo-num">$0.00<small> on free tier</small></div>
+            <p className="colo-fine">Powered by Google AI Studio free-tier routing</p>
           </div>
           <div>
-            <div className="colo-k">How to read the colours</div>
+            <div className="colo-k">Color Legend</div>
             <ul className="key">
-              <li><i style={{ background: "#F0431F" }} />Vermilion: checkout blocker (sandbox)</li>
+              <li><i style={{ background: "#F0431F" }} />Vermilion: checkout blocker (demo)</li>
               <li><i style={{ background: "#00A36C" }} />Green: clean / verified pass</li>
-              <li><i style={{ background: "#2B3BFF" }} />Ultramarine: live DOM evidence</li>
+              <li><i style={{ background: "#2B3BFF" }} />Ultramarine: live HTML / DOM evidence</li>
               <li><i style={{ background: "#FFB400" }} />Marigold: voice / warnings</li>
             </ul>
           </div>
         </div>
-        <div className="colo-base"><span>Pramana (प्रमाण): Sanskrit for valid evidence. Built by Team Vimarsha.</span><span>Set in Bodoni Moda, Hanken Grotesk and JetBrains Mono.</span></div>
+        <div className="colo-base">
+          <span>Pramana (प्रमाण): Sanskrit for valid evidence. Built by Team Vimarsha for Startup Buildathon India 2026.</span>
+          <span>ZestKart and ScaleGrid are fictional demo applications built to demonstrate connected repository workflows.</span>
+        </div>
       </div>
     </footer>
   );
@@ -2164,7 +2322,9 @@ function Colophon() {
 
 export default function App() {
   const [sid, setSidRaw] = useState(0);
-  const [url, setUrl] = useState("https://checkout.zestkart.in/v2/payment");
+  // Start with an empty URL field in the Product-First Ready state so visitors know Pramana is a tool for THEIR URL
+  const [url, setUrl] = useState("");
+  const [hasSelectedExample, setHasSelectedExample] = useState(false);
   const [audit, setAudit] = useState({ state: "done", step: 4, ran: false });
   const [mode, setMode] = useState("vision");
   const [merge, setMerge] = useState("idle");
@@ -2174,17 +2334,19 @@ export default function App() {
   const [showQuotas, setShowQuotas] = useState(false);
   const [apiError, setApiError] = useState(null);
 
+  const inputRef = useRef(null);
   const timers = useRef([]);
   const sc = SCENARIOS[sid];
-  const site = useMemo(() => parseSite(url), [url]);
+  const effectiveUrl = url.trim() || sc.defaultUrl;
+  const site = useMemo(() => parseSite(effectiveUrl), [effectiveUrl]);
 
   const activeCustomAudit = useMemo(() => {
-    if (site.isPreset) return null;
+    if (!url.trim() || site.isPreset) return null;
     if (serverCustomAudit && serverCustomAudit.hostname === site.host) {
       return serverCustomAudit;
     }
     return buildClientAuditProfile(url);
-  }, [site.isPreset, site.host, serverCustomAudit, url]);
+  }, [url, site.isPreset, site.host, serverCustomAudit]);
 
   const liveHook = useLiveAudit ? useLiveAudit(sc.specId) : {};
   const quotaRouter = useMemo(() => new QuotaAwareRouter(), []);
@@ -2199,17 +2361,35 @@ export default function App() {
 
   const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
 
-  const setSid = (i) => {
+  const selectExample = (i) => {
     clearTimers();
     setApiError(null);
     setSidRaw(i);
+    setHasSelectedExample(true);
     setUrl(SCENARIOS[i].defaultUrl);
     setServerCustomAudit(null);
     setMerge("idle");
+    setAudit({ state: "done", step: 4, ran: true });
+  };
+
+  const resetToProductOverview = () => {
+    clearTimers();
+    setApiError(null);
+    setHasSelectedExample(false);
+    setUrl("");
+    setServerCustomAudit(null);
+    setMerge("idle");
+    setPageView("command");
     setAudit({ state: "done", step: 4, ran: false });
   };
 
-  const runAudit = async () => {
+  const executeAuditForUrl = async (targetInput) => {
+    const trimmed = String(targetInput ?? url).trim();
+    if (!trimmed) {
+      setApiError("Paste any website URL above (or click google.com, github.com, or example.com below) to run a live audit.");
+      if (inputRef.current) inputRef.current.focus();
+      return;
+    }
     if (audit.state === "running") return;
     clearTimers();
     setApiError(null);
@@ -2226,7 +2406,7 @@ export default function App() {
       const resp = await fetch("/api/audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, target_url: url, targetUrl: url, scenarioId: sc.specId }),
+        body: JSON.stringify({ url: trimmed, target_url: trimmed, targetUrl: trimmed, scenarioId: sc.specId }),
       });
       const data = await resp.json();
       if (!resp.ok || data.ok === false) {
@@ -2235,12 +2415,18 @@ export default function App() {
         setServerCustomAudit(data.isCustomUrl ? data : null);
       }
       try {
-        if (sc.specId === "S2_UPI_TIMEOUT" && site.isPreset) lyriaSynth.playPaymentAlert();
+        if (sc.specId === "S2_UPI_TIMEOUT" && parseSite(trimmed).isPreset) lyriaSynth.playPaymentAlert();
         else lyriaSynth.playSuccessChime();
       } catch { /* ignore blocked audio */ }
     } catch {
       // Client-side domain-aware profile remains active if offline
     }
+  };
+
+  const quickTryUrl = (sampleUrl) => {
+    setUrl(sampleUrl);
+    setHasSelectedExample(false);
+    executeAuditForUrl(sampleUrl);
   };
 
   return (
@@ -2253,6 +2439,7 @@ export default function App() {
           customAudit={activeCustomAudit}
           pageView={pageView}
           setPageView={setPageView}
+          resetToProductOverview={resetToProductOverview}
         />
         <main className="gutter main">
           {pageView === "certificate" ? (
@@ -2266,11 +2453,14 @@ export default function App() {
             <CommandCenter
               sc={sc}
               sid={sid}
-              setSid={setSid}
+              selectExample={selectExample}
+              resetToProductOverview={resetToProductOverview}
+              hasSelectedExample={hasSelectedExample}
               url={url}
               setUrl={setUrl}
               audit={audit}
-              runAudit={runAudit}
+              runAudit={() => executeAuditForUrl(url)}
+              quickTryUrl={quickTryUrl}
               mode={mode}
               setMode={setMode}
               merge={merge}
@@ -2283,6 +2473,7 @@ export default function App() {
               showQuotas={showQuotas}
               setShowQuotas={setShowQuotas}
               apiError={apiError}
+              inputRef={inputRef}
             />
           )}
         </main>

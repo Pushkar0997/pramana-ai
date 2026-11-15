@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pramana AI (प्रमाण) — Verifiable Audit Certificate</title>
+  <title>Pramana AI (प्रमाण) — Shareable Audit Summary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+Devanagari:wght@600;700&display=swap" rel="stylesheet" />
@@ -63,15 +63,20 @@
     <header>
       <div class="mast-top">
         <span>VERIFIED BY PRAMANA AI (TEAM VIMARSHA)</span>
-        <span>Google Cloud Run · Mumbai asia-south1 · $0.024 / audit (&le; $0.025 INV-06)</span>
+        <span>Shareable Audit Summary · Connected Demo Storefront &amp; Live Public HTML</span>
       </div>
       <div class="mast-main">
-        <div class="brand">
-          <h1 class="wordmark">Pramana<em>AI</em></h1>
-          <span class="deva" lang="sa">प्रमाण</span>
-          <span style="color:var(--mute);font-size:13px;">Verifiable Audit Certificate</span>
+        <div>
+          <div class="brand">
+            <h1 class="wordmark">Pramana<em>AI</em></h1>
+            <span class="deva" lang="sa">प्रमाण</span>
+            <span style="color:var(--mute);font-size:13px;">Shareable Audit Summary</span>
+          </div>
+          <p style="margin:4px 0 0;font-size:14.5px;color:var(--ink2);font-weight:600;">
+            Pramana finds conversion-killing bugs on checkout pages and drafts the fix.
+          </p>
         </div>
-        <a href="/" class="btn-primary">← Back to Live Command Center</a>
+        <a href="/" class="btn-primary">← Back to Audit Workstation</a>
       </div>
       <div class="dbl"></div>
     </header>
@@ -79,46 +84,46 @@
     <section class="card">
       <div class="badge-row">
         <span class="badge badge-blue">VERIFIED BY PRAMANA AI (TEAM VIMARSHA)</span>
+        <span id="mode-badge" class="badge badge-gold">CONNECTED SANDBOX EXAMPLE (OUR DEMO STORE)</span>
         <span class="badge badge-green">3/3 deterministic passes</span>
-        <span class="badge badge-gold">$0.024 audit cost</span>
       </div>
-      <h2 id="proof-title" class="headline">ZestKart Checkout Conversion-Leakage Proof</h2>
-      <p id="proof-subtitle" class="subtitle">Target: https://checkout.zestkart.in/v2/payment</p>
+      <h2 id="proof-title" class="headline">Worked Example (ZestKart, our demo store): Mobile Pay Button Clipped on 390px Screens</h2>
+      <p id="proof-subtitle" class="subtitle">ZestKart is Pramana's fictional demo storefront built to showcase full browser + GitHub repository integration.</p>
       <div class="switcher">
-        <button type="button" class="pill-btn" data-id="142">#142 Hindi Overflow</button>
-        <button type="button" class="pill-btn" data-id="143">#143 UPI Timeout</button>
-        <button type="button" class="pill-btn" data-id="144">#144 Dark Contrast</button>
+        <button type="button" class="pill-btn" data-id="142">Example 1: Mobile Pay Button Clipped (ZestKart Demo)</button>
+        <button type="button" class="pill-btn" data-id="143">Example 2: UPI Spinner Stuck (ZestKart Demo)</button>
+        <button type="button" class="pill-btn" data-id="144">Example 3: Dark-Mode Unclickable Button (ScaleGrid Demo)</button>
       </div>
     </section>
 
     <section class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
         <div>
-          <div class="kicker">Visual &amp; Structural Evidence</div>
-          <h3 style="margin:0;font:700 22px var(--display);">Before vs. After Visual Patch (Nano Banana Adapter)</h3>
+          <div class="kicker">Visual &amp; Structural Comparison</div>
+          <h3 style="margin:0;font:700 22px var(--display);">Before vs. After UI Fix Preview</h3>
         </div>
-        <button id="toggle-patch-btn" type="button" class="pill-btn active">Showing: Split Diff</button>
+        <button id="toggle-patch-btn" type="button" class="pill-btn active">Showing: Side-by-Side</button>
       </div>
       <div class="compare-grid">
         <div class="preview-box bad" id="before-panel">
-          <div class="preview-label" style="color:var(--red-d);">BEFORE (Unpatched DOM State)</div>
+          <div class="preview-label" style="color:var(--red-d);">BEFORE (Buggy UI State)</div>
           <div id="before-visual" style="padding:14px;border-radius:10px;background:#fff;border:1px solid var(--rule);overflow:hidden;"></div>
         </div>
         <div class="preview-box good" id="after-panel">
-          <div class="preview-label" style="color:var(--green-d);">AFTER (Auto-Patched DOM/CSS)</div>
+          <div class="preview-label" style="color:var(--green-d);">AFTER (Patched UI State)</div>
           <div id="after-visual" style="padding:14px;border-radius:10px;background:#fff;border:1px solid var(--rule);"></div>
         </div>
       </div>
     </section>
 
     <section class="card">
-      <div class="kicker">Deterministic Remediation Patch</div>
-      <h3 style="margin:0 0 8px;font:700 22px var(--display);">Gemma 4 31B Root-Cause Trace &amp; Google Antigravity Git Diff</h3>
+      <div class="kicker">Proposed Code Fix</div>
+      <h3 style="margin:0 0 8px;font:700 22px var(--display);">Root-Cause Summary &amp; Proposed Diff</h3>
       <p id="gemma-trace" style="margin:0;color:var(--ink2);"></p>
       <pre id="git-diff-box" class="diff-pre"></pre>
       <div class="actions">
         <button id="copy-diff-btn" type="button" class="btn-secondary">Copy Git Patch (.diff)</button>
-        <a href="/" class="btn-primary">⚡ Open Full Command Center → /</a>
+        <a href="/" class="btn-primary">⚡ Audit Your Own URL → /</a>
       </div>
     </section>
   </div>
@@ -132,27 +137,27 @@
 
       var PROOFS = {
         '142': {
-          title: brand + ' — #142: Hindi Sticky CTA Overflows 390px Mobile Viewport',
-          subtitle: 'Scenario: S1_HINDI_OVERFLOW · Selector: #checkout-sticky-cta · Surface: Mobile Checkout Funnel',
+          title: 'Worked Example (' + brand + ', our demo store): Mobile Pay Button Clipped on 390px Screens',
+          subtitle: 'Connected Sandbox Example · Selector: #checkout-sticky-cta · ZestKart is our fictional demo storefront',
           beforeHtml: '<button style="white-space:nowrap;width:412px;background:#FF5A36;color:#fff;border:none;padding:12px;border-radius:10px;font-weight:700;">अभी ₹4,299 का भुगतान सुरक्षित रूप से करें और ऑर्डर की पुष्टि करें (CLIPPED)</button>',
           afterHtml: '<button style="width:100%;white-space:normal;word-break:break-word;background:#00A36C;color:#fff;border:none;padding:12px;border-radius:10px;font-weight:700;">₹4,299 का भुगतान करें → (Full 390px Viewport Fit)</button>',
-          trace: 'Gemma 4 31B pruned 25k HAR/console tokens to 412 tokens: #checkout-sticky-cta overflows 390px viewport under hi-IN locale.',
+          trace: 'In our ZestKart demo storefront, #checkout-sticky-cta overflows a 390px mobile viewport when Hindi text is rendered inside a nowrap flex container.',
           diff: '--- a/src/components/checkout/StickyPaymentBar.tsx\n+++ b/src/components/checkout/StickyPaymentBar.tsx\n@@ -18,3 +18,3 @@\n-<button id="checkout-sticky-cta" className="whitespace-nowrap px-6 py-3">\n+<button id="checkout-sticky-cta" className="min-w-0 flex-1 whitespace-normal text-balance px-4 py-3">',
         },
         '143': {
-          title: brand + ' — #143: UPI Webhook Race Condition & 504 Timeout',
-          subtitle: 'Scenario: S2_UPI_TIMEOUT · Selector: #upi-status-poller · Surface: Payment Confirmation Webhook',
+          title: 'Worked Example (' + brand + ', our demo store): UPI Payment Spinner Stuck After Checkout',
+          subtitle: 'Connected Sandbox Example · Selector: #upi-status-poller · ZestKart is our fictional demo storefront',
           beforeHtml: '<div style="color:#C2300F;font-family:monospace;font-size:12.5px;">POST /api/upi/confirm → 504 Gateway Timeout (webhook arrived 212ms before order row)</div>',
           afterHtml: '<div style="color:#007A51;font-family:monospace;font-size:12.5px;">upsertPending + idempotencyKey + 250ms reconcile job → 200 OK PAID_RECONCILED</div>',
-          trace: 'Gemma 4 31B aligned payment.captured webhook arrival (-212ms) with orders.insert commit.',
+          trace: 'In our ZestKart demo storefront, the payment.captured webhook arrives 212ms before orders.insert completes, causing an unhandled 504 timeout.',
           diff: '--- a/src/server/webhooks/upiConfirm.ts\n+++ b/src/server/webhooks/upiConfirm.ts\n@@ -24,3 +24,3 @@\n-const order = await db.orders.find(evt.orderId);\n-if (!order) throw new Error("OrderNotFound");\n+const order = await db.orders.upsertPending(evt.orderId, evt.payerRef);\n+await db.orders.markPaid(order.id, { idempotencyKey: evt.eventId });',
         },
         '144': {
-          title: brand + ' — #144: Dark-Mode Place Order Contrast (2.1:1) & Scrim Blocker',
-          subtitle: 'Scenario: S3_DARKMODE_CONTRAST · Selector: #place-order-cta · Surface: Desktop Billing',
+          title: 'Worked Example (ScaleGrid, our demo app): Dark-Mode Place Order Contrast & Overlay Blocker',
+          subtitle: 'Connected Sandbox Example · Selector: #place-order-cta · ScaleGrid is our fictional demo billing app',
           beforeHtml: '<button style="width:100%;background:#1C2030;color:#4A4F63;border:1px solid #262B3E;padding:12px;border-radius:10px;">Place order · ₹4,299 (2.1:1 Contrast + Intercepted by .promo-scrim z-40)</button>',
           afterHtml: '<button style="width:100%;background:#2B3BFF;color:#FFFFFF;border:none;padding:12px;border-radius:10px;font-weight:700;">Place order · ₹4,299 (WCAG AA 7.4:1 · z-index: 50)</button>',
-          trace: 'Gemma 4 31B flagged WCAG AA contrast failure (2.1:1 < 4.5:1) + div.promo-scrim (z-index: 40) intercepting clicks.',
+          trace: 'In our ScaleGrid demo app, dark mode renders the Apply button at 2.1:1 contrast (< 4.5:1 WCAG AA) while div.promo-scrim (z-index: 40) blocks clicks.',
           diff: '--- a/src/components/checkout/PlaceOrderButton.tsx\n+++ b/src/components/checkout/PlaceOrderButton.tsx\n@@ -9,2 +9,2 @@\n-<button className="relative z-0 bg-slate-800 text-slate-500" onClick={onPlace}>\n+<button id="place-order-cta" className="relative z-50 bg-indigo-500 text-white" onClick={onPlace}>',
         },
       };
@@ -182,7 +187,7 @@
       document.getElementById('toggle-patch-btn').addEventListener('click', function () {
         onlyAfter = !onlyAfter;
         document.getElementById('before-panel').style.display = onlyAfter ? 'none' : 'block';
-        this.textContent = onlyAfter ? 'Showing: After Patch Only' : 'Showing: Split Diff';
+        this.textContent = onlyAfter ? 'Showing: Patched State Only' : 'Showing: Side-by-Side';
       });
 
       document.getElementById('copy-diff-btn').addEventListener('click', function () {
@@ -203,9 +208,10 @@
           .then(function (data) {
             if (!data || !data.customFinding) return;
             var f = data.customFinding;
+            document.getElementById('mode-badge').textContent = 'LIVE PUBLIC HTML';
             document.getElementById('proof-title').textContent = f.anomalyTitle;
             document.getElementById('proof-subtitle').textContent =
-              'Target: ' + data.targetUrl + ' · Surface: ' + (f.surfaceCategory || 'Live DOM') + ' · Score: ' + (f.domHealthScore || 82) + '/100';
+              'Live Public HTML Audit · Target: ' + data.targetUrl + ' · Surface: ' + (f.surfaceCategory || 'Live DOM') + ' · Readiness: ' + (f.domHealthScore || 94) + '/100';
             document.getElementById('gemma-trace').textContent = f.summary;
             if (f.diffLines) {
               document.getElementById('git-diff-box').textContent = f.diffLines
