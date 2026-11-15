@@ -15,7 +15,7 @@ const DEFAULT_HEALTH = {
 function buildOfflineMeta(url, scenarioId, latencyMs) {
   let title = 'ZestKart Checkout';
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
     title = `${parsed.hostname.replace(/^www\./, '')} Live Target`;
   } catch {
     // Keep fallback title
@@ -75,21 +75,25 @@ export function useLiveAudit(initialScenarioId = 'S1_HINDI_OVERFLOW') {
         const res = await fetch('/api/audit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, scenarioId }),
+          body: JSON.stringify({ url, target_url: url, targetUrl: url, scenarioId }),
         });
         const latencyMs = Math.round(performance.now() - started);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        const traceModel = data?.agent_skills_trace?.[1]?.model || 'gemma-4-31b-it';
         const meta = {
-          pageTitle: data?.page_metadata?.page_title || 'Target Page',
-          httpStatus: data?.page_metadata?.http_status ?? 200,
-          domNodesScanned: (data?.page_metadata?.button_count || 0) + (data?.page_metadata?.script_count || 0) || 12,
-          activeModel: traceModel,
-          executionMode: data?.page_metadata?.live_fetch_succeeded ? 'live_vercel_edge' : 'deterministic_fallback',
+          pageTitle: data?.scrapedDom?.pageTitle || data?.page_metadata?.page_title || 'Target Page',
+          httpStatus: data?.httpStatus ?? data?.page_metadata?.http_status ?? 200,
+          domNodesScanned:
+            data?.scrapedDom?.accessibilityMetrics?.estimatedDomNodes ||
+            (data?.page_metadata?.button_count || 0) + (data?.page_metadata?.script_count || 0) ||
+            12,
+          activeModel: data?.activeModel || 'gemma-4-31b-it',
+          executionMode: data?.executionMode || data?.execution_mode || 'live_public_html_scrape',
+          auditMode: data?.auditMode || (data?.isCustomUrl ? 'LIVE_PUBLIC_HTML_SCRAPE' : 'BENCHMARK_FIXTURE'),
           scenarioId,
           latencyMs,
           timestamp: new Date().toISOString(),
+          rawResponse: data,
         };
         setLiveMeta(meta);
         return meta;
