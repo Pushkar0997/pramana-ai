@@ -3,72 +3,118 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pramana AI — Verifiable Founder Proof Portal</title>
+  <title>Pramana AI (प्रमाण) — Verifiable Audit Certificate</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+Devanagari:wght@600;700&display=swap" rel="stylesheet" />
   <style>
-    :root { --bg: #090A0F; --card: #11131C; --border: #1E2230; --cyan: #22D3EE; --emerald: #34D399; --text: #F8FAFC; --muted: #94A3B8; }
+    :root {
+      --paper: #F6F7FB; --card: #FFFFFF; --ink: #0B1020; --ink2: #3B4259; --mute: #636A82; --rule: #D8DCEA; --rule2: #ECEEF6;
+      --blue: #2B3BFF; --blue-d: #1B27C7; --blue-w: #E3E7FF;
+      --red: #F0431F; --red-d: #C2300F; --red-w: #FFE5DD;
+      --green: #00A36C; --green-d: #007A51; --green-w: #D8F5E8;
+      --gold: #FFB400; --gold-d: #8A5F00; --gold-w: #FFF0C2;
+      --display: 'Bodoni Moda', Georgia, serif;
+      --sans: 'Hanken Grotesk', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; padding: 20px 16px 96px; }
-    .wrap { max-width: 920px; margin: 0 auto; display: grid; gap: 16px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
-    .header { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; }
-    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .badge { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: #090A0F; }
-    .badge-cyan { color: var(--cyan); border-color: rgba(34, 211, 238, 0.4); }
-    .badge-emerald { color: var(--emerald); border-color: rgba(52, 211, 153, 0.4); }
-    .switcher { display: flex; flex-wrap: wrap; gap: 8px; }
-    .pill-btn { background: #090A0F; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
-    .pill-btn.active { color: var(--cyan); border-color: var(--cyan); background: rgba(34, 211, 238, 0.08); }
-    .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
-    .preview-box { background: #090A0F; border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
-    .preview-label { font-size: 11px; font-family: ui-monospace, monospace; margin-bottom: 8px; }
-    .diff-pre { background: #090A0F; border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-family: ui-monospace, monospace; font-size: 12px; overflow-x: auto; line-height: 1.5; margin: 10px 0 0; }
-    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-    .btn-primary { background: var(--cyan); color: #042F2E; border: none; border-radius: 8px; padding: 10px 16px; font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-    .btn-secondary { background: #090A0F; color: var(--emerald); border: 1px solid rgba(52, 211, 153, 0.45); border-radius: 8px; padding: 10px 16px; font-weight: 600; font-size: 13px; cursor: pointer; }
-    .muted { color: var(--muted); font-size: 13px; }
+    body {
+      margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55;
+      background-image: radial-gradient(760px 340px at 88% -40px, rgba(43,59,255,.09), transparent 70%),
+                        radial-gradient(560px 300px at 0 0, rgba(255,180,0,.10), transparent 70%);
+      background-repeat: no-repeat;
+      padding: 0 0 80px;
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+    .mast-top { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 12px 0; font: 500 11px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); border-bottom: 1px solid var(--rule); }
+    .mast-main { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px 24px; padding: 18px 0 14px; }
+    .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+    .wordmark { margin: 0; font: 800 clamp(36px, 5vw, 56px)/.92 var(--display); letter-spacing: -.025em; }
+    .wordmark em { font-weight: 500; color: var(--blue); font-style: italic; margin-left: .1em; }
+    .deva { font: 700 24px/1 'Noto Serif Devanagari', var(--display); color: var(--blue); }
+    .dbl { border-top: 3px solid var(--ink); border-bottom: 1px solid var(--ink); height: 6px; margin-bottom: 32px; }
+    .card { background: var(--card); border: 1px solid var(--rule); border-radius: 22px; padding: 26px; margin-bottom: 22px; box-shadow: 0 22px 46px -32px rgba(11,16,32,.28); }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+    .badge { font: 700 10.5px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); }
+    .badge-blue { background: var(--blue-w); color: var(--blue-d); border-color: rgba(43,59,255,.25); }
+    .badge-green { background: var(--green-w); color: var(--green-d); border-color: rgba(0,163,108,.25); }
+    .badge-gold { background: var(--gold-w); color: var(--gold-d); border-color: rgba(255,180,0,.35); }
+    .headline { margin: 6px 0 10px; font: 700 clamp(26px, 3.6vw, 42px)/1.08 var(--display); letter-spacing: -.02em; color: var(--ink); }
+    .subtitle { margin: 0; color: var(--ink2); font-size: 16px; }
+    .switcher { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .pill-btn { background: var(--paper); color: var(--ink2); border: 1px solid var(--rule); border-radius: 10px; padding: 8px 14px; font: 700 12.5px var(--sans); cursor: pointer; transition: all .15s; }
+    .pill-btn:hover { border-color: var(--ink); color: var(--ink); }
+    .pill-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; }
+    .preview-box { border: 1.5px solid var(--rule); border-radius: 16px; padding: 18px; background: var(--paper); }
+    .preview-box.bad { border-color: var(--red); background: var(--red-w); }
+    .preview-box.good { border-color: var(--green); background: var(--green-w); }
+    .preview-label { font: 800 11px var(--sans); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 10px; }
+    .diff-pre { background: #FBFBFE; border: 1px solid var(--rule); border-radius: 14px; padding: 16px; font: 400 12.5px/1.65 var(--mono); color: var(--ink); overflow-x: auto; margin: 14px 0 0; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+    .btn-primary { background: var(--blue); color: #fff; border: none; border-radius: 12px; padding: 12px 18px; font: 800 14px var(--sans); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-secondary { background: var(--gold); color: var(--ink); border: none; border-radius: 12px; padding: 12px 18px; font: 800 14px var(--sans); cursor: pointer; box-shadow: 0 4px 0 #C48A00; }
+    .kicker { font: 800 11px/1.3 var(--sans); letter-spacing: .15em; text-transform: uppercase; color: var(--mute); margin-bottom: 6px; }
   </style>
 </head>
 <body>
   <div class="wrap">
+    <header>
+      <div class="mast-top">
+        <span>VERIFIED BY PRAMANA AI (TEAM VIMARSHA)</span>
+        <span>Google Cloud Run · Mumbai asia-south1 · $0.024 / audit (&le; $0.025 INV-06)</span>
+      </div>
+      <div class="mast-main">
+        <div class="brand">
+          <h1 class="wordmark">Pramana<em>AI</em></h1>
+          <span class="deva" lang="sa">प्रमाण</span>
+          <span style="color:var(--mute);font-size:13px;">Verifiable Audit Certificate</span>
+        </div>
+        <a href="/" class="btn-primary">← Back to Live Command Center</a>
+      </div>
+      <div class="dbl"></div>
+    </header>
+
     <section class="card">
-      <div class="header">
-        <div>
-          <div class="badge-row">
-            <span class="badge badge-cyan">VERIFIED BY PRAMANA AI (TEAM VIMARSHA)</span>
-            <span class="badge badge-emerald">3/3 deterministic passes</span>
-            <span class="badge badge-emerald">$0.024 audit cost</span>
-          </div>
-          <h1 id="proof-title" style="margin:12px 0 4px;font-size:20px;">ZestKart Checkout Conversion-Leakage Proof</h1>
-          <p id="proof-subtitle" class="muted" style="margin:0;">Target: https://checkout.zestkart.in/v2/payment</p>
-        </div>
-        <div class="switcher">
-          <button type="button" class="pill-btn" data-id="142">#142 Hindi Overflow</button>
-          <button type="button" class="pill-btn" data-id="143">#143 UPI Timeout</button>
-          <button type="button" class="pill-btn" data-id="144">#144 Dark Contrast</button>
-        </div>
+      <div class="badge-row">
+        <span class="badge badge-blue">VERIFIED BY PRAMANA AI (TEAM VIMARSHA)</span>
+        <span class="badge badge-green">3/3 deterministic passes</span>
+        <span class="badge badge-gold">$0.024 audit cost</span>
+      </div>
+      <h2 id="proof-title" class="headline">ZestKart Checkout Conversion-Leakage Proof</h2>
+      <p id="proof-subtitle" class="subtitle">Target: https://checkout.zestkart.in/v2/payment</p>
+      <div class="switcher">
+        <button type="button" class="pill-btn" data-id="142">#142 Hindi Overflow</button>
+        <button type="button" class="pill-btn" data-id="143">#143 UPI Timeout</button>
+        <button type="button" class="pill-btn" data-id="144">#144 Dark Contrast</button>
       </div>
     </section>
 
     <section class="card">
-      <div class="header">
-        <h2 style="margin:0;font-size:16px;">Before vs. After Visual Patch (Nano Banana Adapter)</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div class="kicker">Visual &amp; Structural Evidence</div>
+          <h3 style="margin:0;font:700 22px var(--display);">Before vs. After Visual Patch (Nano Banana Adapter)</h3>
+        </div>
         <button id="toggle-patch-btn" type="button" class="pill-btn active">Showing: Split Diff</button>
       </div>
       <div class="compare-grid">
-        <div class="preview-box" id="before-panel">
-          <div class="preview-label" style="color:#FDA4AF;">BEFORE (Production Bug)</div>
-          <div id="before-visual" style="padding:12px;border-radius:8px;background:#1E293B;overflow:hidden;"></div>
+        <div class="preview-box bad" id="before-panel">
+          <div class="preview-label" style="color:var(--red-d);">BEFORE (Unpatched DOM State)</div>
+          <div id="before-visual" style="padding:14px;border-radius:10px;background:#fff;border:1px solid var(--rule);overflow:hidden;"></div>
         </div>
-        <div class="preview-box" id="after-panel">
-          <div class="preview-label" style="color:#34D399;">AFTER (Auto-Patched DOM/CSS)</div>
-          <div id="after-visual" style="padding:12px;border-radius:8px;background:#1E293B;"></div>
+        <div class="preview-box good" id="after-panel">
+          <div class="preview-label" style="color:var(--green-d);">AFTER (Auto-Patched DOM/CSS)</div>
+          <div id="after-visual" style="padding:14px;border-radius:10px;background:#fff;border:1px solid var(--rule);"></div>
         </div>
       </div>
     </section>
 
     <section class="card">
-      <h2 style="margin:0 0 6px;font-size:16px;">Gemma 4 31B Root-Cause Trace &amp; Google Antigravity Git Diff</h2>
-      <p id="gemma-trace" class="muted" style="margin:0;"></p>
+      <div class="kicker">Deterministic Remediation Patch</div>
+      <h3 style="margin:0 0 8px;font:700 22px var(--display);">Gemma 4 31B Root-Cause Trace &amp; Google Antigravity Git Diff</h3>
+      <p id="gemma-trace" style="margin:0;color:var(--ink2);"></p>
       <pre id="git-diff-box" class="diff-pre"></pre>
       <div class="actions">
         <button id="copy-diff-btn" type="button" class="btn-secondary">Copy Git Patch (.diff)</button>
@@ -81,32 +127,33 @@
     (function () {
       var params = new URLSearchParams(window.location.search);
       var brand = params.get('brand') || 'ZestKart';
+      var customUrl = params.get('url') || '';
       var currentId = params.get('id') || '142';
 
       var PROOFS = {
         '142': {
           title: brand + ' — #142: Hindi Sticky CTA Overflows 390px Mobile Viewport',
-          subtitle: 'Scenario: S1_HINDI_OVERFLOW · Selector: #checkout-sticky-cta · Est. Loss: ₹4.2L/mo',
-          beforeHtml: '<button style="white-space:nowrap;width:412px;background:#22D3EE;color:#042F2E;border:none;padding:10px;border-radius:8px;font-weight:700;">अभी ₹1,499 भुगतान करें और ऑर्डर कन्फर्म करें (CLIPPED)</button>',
-          afterHtml: '<button style="width:100%;white-space:normal;word-break:break-word;background:#22D3EE;color:#042F2E;border:none;padding:10px;border-radius:8px;font-weight:700;">अभी ₹1,499 भुगतान करें और ऑर्डर कन्फर्म करें</button>',
-          trace: 'Gemma 4 31B pruned 25k HAR/console tokens to 410 tokens: #checkout-sticky-cta (412px) overflows 390px viewport under hi-IN locale.',
-          diff: '--- a/src/components/checkout/StickyPaymentBar.tsx\n+++ b/src/components/checkout/StickyPaymentBar.tsx\n@@ -18,3 +18,3 @@\n-<button id="checkout-sticky-cta" className="whitespace-nowrap px-6 py-3">\n+<button id="checkout-sticky-cta" className="w-full max-w-full whitespace-normal break-words px-4 py-3">',
+          subtitle: 'Scenario: S1_HINDI_OVERFLOW · Selector: #checkout-sticky-cta · Surface: Mobile Checkout Funnel',
+          beforeHtml: '<button style="white-space:nowrap;width:412px;background:#FF5A36;color:#fff;border:none;padding:12px;border-radius:10px;font-weight:700;">अभी ₹4,299 का भुगतान सुरक्षित रूप से करें और ऑर्डर की पुष्टि करें (CLIPPED)</button>',
+          afterHtml: '<button style="width:100%;white-space:normal;word-break:break-word;background:#00A36C;color:#fff;border:none;padding:12px;border-radius:10px;font-weight:700;">₹4,299 का भुगतान करें → (Full 390px Viewport Fit)</button>',
+          trace: 'Gemma 4 31B pruned 25k HAR/console tokens to 412 tokens: #checkout-sticky-cta overflows 390px viewport under hi-IN locale.',
+          diff: '--- a/src/components/checkout/StickyPaymentBar.tsx\n+++ b/src/components/checkout/StickyPaymentBar.tsx\n@@ -18,3 +18,3 @@\n-<button id="checkout-sticky-cta" className="whitespace-nowrap px-6 py-3">\n+<button id="checkout-sticky-cta" className="min-w-0 flex-1 whitespace-normal text-balance px-4 py-3">',
         },
         '143': {
-          title: brand + ' — #143: UPI Collect Poller 504 Timeout Without Backoff',
-          subtitle: 'Scenario: S2_UPI_TIMEOUT · Selector: #upi-status-poller · Est. Loss: ₹8.9L/mo',
-          beforeHtml: '<div style="color:#FDA4AF;font-family:monospace;font-size:12px;">GET /api/upi/confirm → 504 Gateway Timeout (Uncaught Promise, Spinner Stuck)</div>',
-          afterHtml: '<div style="color:#34D399;font-family:monospace;font-size:12px;">Bounded Exponential Backoff [1s, 2s, 4s] → 200 OK Confirmed</div>',
-          trace: 'Gemma 4 31B pruned HAR >=400 trace: 2x HTTP 504 on /api/v1/payments/upi/status with 15,020ms hang.',
-          diff: '--- a/src/services/payments/upiConfirm.ts\n+++ b/src/services/payments/upiConfirm.ts\n@@ -12,2 +12,5 @@\n-const res = await fetch("/api/v1/payments/upi/status");\n+for (const delay of [1000, 2000, 4000]) {\n+  const res = await fetch("/api/v1/payments/upi/status");\n+  if (res.ok) return res.json();\n+}',
+          title: brand + ' — #143: UPI Webhook Race Condition & 504 Timeout',
+          subtitle: 'Scenario: S2_UPI_TIMEOUT · Selector: #upi-status-poller · Surface: Payment Confirmation Webhook',
+          beforeHtml: '<div style="color:#C2300F;font-family:monospace;font-size:12.5px;">POST /api/upi/confirm → 504 Gateway Timeout (webhook arrived 212ms before order row)</div>',
+          afterHtml: '<div style="color:#007A51;font-family:monospace;font-size:12.5px;">upsertPending + idempotencyKey + 250ms reconcile job → 200 OK PAID_RECONCILED</div>',
+          trace: 'Gemma 4 31B aligned payment.captured webhook arrival (-212ms) with orders.insert commit.',
+          diff: '--- a/src/server/webhooks/upiConfirm.ts\n+++ b/src/server/webhooks/upiConfirm.ts\n@@ -24,3 +24,3 @@\n-const order = await db.orders.find(evt.orderId);\n-if (!order) throw new Error("OrderNotFound");\n+const order = await db.orders.upsertPending(evt.orderId, evt.payerRef);\n+await db.orders.markPaid(order.id, { idempotencyKey: evt.eventId });',
         },
         '144': {
           title: brand + ' — #144: Dark-Mode Place Order Contrast (2.1:1) & Scrim Blocker',
-          subtitle: 'Scenario: S3_DARKMODE_CONTRAST · Selector: #place-order-cta · Est. Loss: ₹2.65L/mo',
-          beforeHtml: '<button style="width:100%;background:#1E293B;color:#3F4E63;border:1px solid #334155;padding:10px;border-radius:8px;">Place Order (Dead-Click Scrim z-40)</button>',
-          afterHtml: '<button style="width:100%;background:#22D3EE;color:#020617;border:none;padding:10px;border-radius:8px;font-weight:700;">Place Order (WCAG AA 11.4:1 · z-50)</button>',
-          trace: 'Gemma 4 31B flagged WCAG AA contrast failure (1.38:1–2.1:1) + div.promo-scrim z-index 40 intercepting clicks.',
-          diff: '--- a/src/components/checkout/PlaceOrderButton.tsx\n+++ b/src/components/checkout/PlaceOrderButton.tsx\n@@ -9,2 +9,2 @@\n-<button id="place-order-cta" className="bg-slate-800 text-slate-700">\n+<button id="place-order-cta" className="bg-cyan-500 text-slate-950 font-semibold z-50">',
+          subtitle: 'Scenario: S3_DARKMODE_CONTRAST · Selector: #place-order-cta · Surface: Desktop Billing',
+          beforeHtml: '<button style="width:100%;background:#1C2030;color:#4A4F63;border:1px solid #262B3E;padding:12px;border-radius:10px;">Place order · ₹4,299 (2.1:1 Contrast + Intercepted by .promo-scrim z-40)</button>',
+          afterHtml: '<button style="width:100%;background:#2B3BFF;color:#FFFFFF;border:none;padding:12px;border-radius:10px;font-weight:700;">Place order · ₹4,299 (WCAG AA 7.4:1 · z-index: 50)</button>',
+          trace: 'Gemma 4 31B flagged WCAG AA contrast failure (2.1:1 < 4.5:1) + div.promo-scrim (z-index: 40) intercepting clicks.',
+          diff: '--- a/src/components/checkout/PlaceOrderButton.tsx\n+++ b/src/components/checkout/PlaceOrderButton.tsx\n@@ -9,2 +9,2 @@\n-<button className="relative z-0 bg-slate-800 text-slate-500" onClick={onPlace}>\n+<button id="place-order-cta" className="relative z-50 bg-indigo-500 text-white" onClick={onPlace}>',
         },
       };
 
@@ -128,9 +175,6 @@
       document.querySelectorAll('.pill-btn[data-id]').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var id = btn.getAttribute('data-id');
-          var next = new URL(window.location.href);
-          next.searchParams.set('id', id);
-          window.history.replaceState({}, '', next.toString());
           render(id);
         });
       });
@@ -142,7 +186,7 @@
       });
 
       document.getElementById('copy-diff-btn').addEventListener('click', function () {
-        var diff = PROOFS[currentId].diff;
+        var diff = document.getElementById('git-diff-box').textContent;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(diff);
         }
@@ -152,6 +196,25 @@
       });
 
       render(currentId);
+
+      if (customUrl) {
+        fetch('/api/audit?url=' + encodeURIComponent(customUrl))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            if (!data || !data.customFinding) return;
+            var f = data.customFinding;
+            document.getElementById('proof-title').textContent = f.anomalyTitle;
+            document.getElementById('proof-subtitle').textContent =
+              'Target: ' + data.targetUrl + ' · Surface: ' + (f.surfaceCategory || 'Live DOM') + ' · Score: ' + (f.domHealthScore || 82) + '/100';
+            document.getElementById('gemma-trace').textContent = f.summary;
+            if (f.diffLines) {
+              document.getElementById('git-diff-box').textContent = f.diffLines
+                .map(function (l) { return (l.t === 'add' ? '+ ' : l.t === 'del' ? '- ' : '  ') + l.c; })
+                .join('\n');
+            }
+          })
+          .catch(function () {});
+      }
     })();
   </script>
   <script src="/orb.js" data-site="zestkart-proof" async></script>
