@@ -1376,6 +1376,8 @@ function LiveMobileViewport({ customAudit }) {
 /* ═════════════ Editorial Live URL Report (T-305..T-310) ═════════════ */
 function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
   const [copiedFix, copyFix] = useCopy();
+  const [copiedPrompt, copyPrompt] = useCopy();
+  const [copiedOutreach, copyOutreach] = useCopy();
   const [showTechJson, setShowTechJson] = useState(false);
   const [evidenceFilter, setEvidenceFilter] = useState("ALL");
 
@@ -1394,6 +1396,16 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
   const remediationEligible = Boolean(finding.remediationEligible && !isUnverified);
   const diffLines = finding.diffLines || [];
   const rawFix = diffLines.map((l) => `${l.t === "add" ? "+ " : l.t === "del" ? "- " : "  "}${l.c}`).join("\n");
+
+  const aiFixPrompt =
+    finding.aiFixPrompt ||
+    `Fix the ${findingsList.length} mobile UX & HTML issues observed on ${customAudit.targetUrl}:\n\n${findingsList
+      .map((f, i) => `${i + 1}. [${f.id}] ${f.title}\n   Observed HTML: ${f.markupSnippet || "N/A"}`)
+      .join("\n")}\n\nSuggested patch:\n${rawFix}`;
+
+  const founderOutreachMessage =
+    finding.founderOutreachMessage ||
+    `Hi ${customAudit.hostname} team — ran a quick mobile & HTML check on ${customAudit.targetUrl} with Pramana AI (Verdict: ${sev}${score !== null ? `, ${score}/100` : ""}) and found ${findingsList.length} quick-win mobile UX fixes. Happy to share the copy-paste fix snippet for Cursor/Lovable!`;
 
   const filteredElements = elements.filter((el) => {
     if (evidenceFilter === "FACT") return (el.claimType || "OBSERVED_FACT") === "OBSERVED_FACT";
@@ -1434,15 +1446,25 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
           <button
             type="button"
             disabled={!remediationEligible}
-            onClick={() => copyFix(rawFix)}
+            onClick={() => copyPrompt(aiFixPrompt)}
             className="btn-act primary"
-            title={remediationEligible ? "Copy evidence-grounded snippet" : "Remediation suppressed for unverified or clean static scan"}
+            title="Copy ready-to-paste prompt for Cursor, Lovable, Bolt, or v0"
+          >
+            <Icon n={copiedPrompt ? "check" : "sparkles"} size={13} />
+            {copiedPrompt ? "Copied AI Prompt ✓" : "Copy AI Fix Prompt (Cursor/Lovable)"}
+          </button>
+          <button
+            type="button"
+            disabled={!remediationEligible}
+            onClick={() => copyFix(rawFix)}
+            className="btn-act"
+            title={remediationEligible ? "Copy evidence-grounded code diff" : "Remediation suppressed for unverified or clean static scan"}
           >
             <Icon n={copiedFix ? "check" : "copy"} size={13} />
-            {copiedFix ? "Copied Snippet ✓" : "Copy Fix Snippet"}
+            {copiedFix ? "Copied Diff ✓" : "Copy Code Diff"}
           </button>
           <button type="button" onClick={onOpenShare} className="btn-act">
-            <Icon n="link" size={13} /> Share Report
+            <Icon n="link" size={13} /> Share Proof
           </button>
           <button type="button" onClick={onOpenConnectRepo} className="btn-act">
             <Icon n="merge" size={13} /> Connect Repo
@@ -1569,6 +1591,11 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
                         <span className="chip mono" style={{ fontSize: 10 }}>role={f.role}</span>
                       </div>
                     </div>
+                    {f.plainEnglishImpact && (
+                      <div style={{ fontSize: 12.5, color: "var(--ink)", background: "var(--card)", padding: "6px 10px", borderRadius: 6, borderLeft: "3px solid var(--blue)" }}>
+                        <b>Why this costs customers:</b> {f.plainEnglishImpact}
+                      </div>
+                    )}
                     {f.markupSnippet && <code className="snippet-code" style={{ maxWidth: "100%" }}>{f.markupSnippet}</code>}
                     <div style={{ fontSize: 12, color: "var(--ink2)" }}>
                       {f.limitationNote} <span className="mono" style={{ color: "var(--mute)" }}>· diag: {f.diagnosticSelector}</span>
@@ -1689,24 +1716,36 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
                   </div>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+              <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
                 <button
                   type="button"
                   disabled={!remediationEligible}
-                  onClick={() => copyFix(rawFix)}
+                  onClick={() => copyPrompt(aiFixPrompt)}
                   className="merge-btn blue-btn"
-                  style={{ flex: 1 }}
                 >
-                  <Icon n={copiedFix ? "check" : "copy"} size={14} />
+                  <Icon n={copiedPrompt ? "check" : "sparkles"} size={14} />
                   {remediationEligible
-                    ? copiedFix ? "Copied Snippet ✓" : "Copy Evidence-Grounded Snippet"
+                    ? copiedPrompt
+                      ? "Copied AI Fix Prompt ✓ (Paste into Cursor / Lovable / Bolt)"
+                      : "Copy AI Fix Prompt (Cursor / Lovable / Bolt)"
                     : isUnverified
                     ? "Patch Suppressed — Unrendered Shell"
                     : "No Static Fix Needed"}
                 </button>
+                {remediationEligible && (
+                  <button
+                    type="button"
+                    onClick={() => copyFix(rawFix)}
+                    className="btn-act"
+                    style={{ width: "100%", justifyContent: "center" }}
+                  >
+                    <Icon n={copiedFix ? "check" : "copy"} size={13} />
+                    {copiedFix ? "Copied Raw HTML/ARIA Diff ✓" : "Copy Raw HTML / ARIA Diff"}
+                  </button>
+                )}
               </div>
               <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--mute)" }}>
-                Static HTML scans never claim layout overlap, computed contrast, or payment click verification.{" "}
+                Built with Cursor, Lovable, Bolt, or Shopify? Paste the AI Fix Prompt above straight into your editor—or{" "}
                 <button
                   type="button"
                   onClick={onOpenConnectRepo}
@@ -1715,6 +1754,42 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
                   Connect GitHub App →
                 </button>
               </p>
+            </div>
+          </div>
+
+          {/* Proof-First Founder Outreach Card (Monetization & Lead Conversion) */}
+          <div className="story">
+            <div className="story-head" style={{ cursor: "default" }}>
+              <div>
+                <span className="kicker">Proof-First Founder Outreach</span>
+                <span className="story-title">1-Click Pitch to {customAudit.hostname}</span>
+              </div>
+              <span className="badge-pill ok">Lead Studio</span>
+            </div>
+            <div className="story-body" style={{ display: "grid", gap: 10 }}>
+              <pre
+                style={{
+                  margin: 0,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: "var(--well)",
+                  border: "1px solid var(--rule)",
+                  font: "400 12px/1.5 var(--sans)",
+                  color: "var(--ink)",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {founderOutreachMessage}
+              </pre>
+              <button
+                type="button"
+                onClick={() => copyOutreach(founderOutreachMessage)}
+                className="btn-act green"
+                style={{ width: "100%", justifyContent: "center" }}
+              >
+                <Icon n={copiedOutreach ? "check" : "copy"} size={13} />
+                {copiedOutreach ? "Copied Founder DM / Email ✓" : "Copy Founder Outreach DM / Email"}
+              </button>
             </div>
           </div>
 
@@ -2359,12 +2434,13 @@ export default function App() {
                 {/* Quick-Try Presets + Capability Boundary */}
                 <div className="cmd-meta">
                   <div className="sample-chips">
-                    <span>Try live:</span>
+                    <span>Try D2C &amp; startup sites:</span>
                     {[
-                      ["google.com", "https://www.google.com"],
-                      ["github.com", "https://github.com"],
-                      ["example.com", "https://example.com"],
-                      ["apple.com/shop/bag", "https://www.apple.com/shop/bag"],
+                      ["boldcare.in (D2C)", "https://boldcare.in"],
+                      ["plumgoodness.com (D2C)", "https://plumgoodness.com"],
+                      ["beminimalist.co (D2C)", "https://beminimalist.co"],
+                      ["demoblaze.com (Store)", "https://demoblaze.com"],
+                      ["apple.com/shop/bag (JS Shell)", "https://www.apple.com/shop/bag"],
                     ].map(([label, target]) => (
                       <button key={label} type="button" className="sample-chip" onClick={() => quickTryUrl(target)}>
                         {label}

@@ -732,12 +732,30 @@ export function parseLiveHtmlDocument(
   const imgMatches = bodyWithoutScripts.match(/<img\b[^>]*>/gi) || [];
   const totalImages = imgMatches.length;
   const missingAltImageSnippets = [];
+  const missingDimImageSnippets = [];
   for (const imgTag of imgMatches) {
     if (!/\balt\s*=/i.test(imgTag)) {
       missingAltImageSnippets.push(truncateSnippet(imgTag, 135));
     }
+    if (!/\bwidth\s*=/i.test(imgTag) || !/\bheight\s*=/i.test(imgTag)) {
+      missingDimImageSnippets.push(truncateSnippet(imgTag, 135));
+    }
   }
   const imagesMissingAlt = missingAltImageSnippets.length;
+  const imagesMissingDimensions = totalImages >= 5 ? missingDimImageSnippets.length : 0;
+
+  const anchorMatches = bodyWithoutScripts.match(/<a\b[^>]*>[\s\S]*?<\/a>/gi) || [];
+  const deadLinkSnippets = [];
+  for (const aTag of anchorMatches) {
+    if (/\bhref\s*=\s*["'](?:#|javascript:void\(0\);?|)["']/i.test(aTag)) {
+      deadLinkSnippets.push(truncateSnippet(aTag, 135));
+    }
+  }
+  const deadLinksCount = deadLinkSnippets.length;
+
+  const isBoilerplateTitle = /^(vite\s*\+\s*react|create\s+next\s+app|react\s+app|lovable\s+app|untitled|document)$/i.test(
+    pageTitle.trim()
+  );
 
   const totalScripts = (safeHtml.match(/<script\b/gi) || []).length;
   const inlineStylesCount = (safeHtml.match(/\bstyle\s*=\s*["']/gi) || []).length;
@@ -796,6 +814,11 @@ export function parseLiveHtmlDocument(
       totalImages,
       imagesMissingAlt,
       missingAltImageSnippets: missingAltImageSnippets.slice(0, 5),
+      imagesMissingDimensions,
+      missingDimImageSnippets: missingDimImageSnippets.slice(0, 5),
+      deadLinksCount,
+      deadLinkSnippets: deadLinkSnippets.slice(0, 5),
+      isBoilerplateTitle,
       totalScripts,
       inlineStylesCount,
       estimatedDomNodes,
@@ -907,14 +930,25 @@ async function callGoogleAiStudio(modelId, apiKey, prompt) {
 function buildEvidenceFindings(scrapedDom, hostname) {
   const findings = [];
   const limitation = scrapedDom.auditLimitation || { limited: false, code: 'NONE' };
-  const { imagesMissingAlt, missingAltImageSnippets = [], zoomBlocked, viewportTagSnippet } =
-    scrapedDom.accessibilityMetrics;
+  const {
+    imagesMissingAlt,
+    missingAltImageSnippets = [],
+    imagesMissingDimensions = 0,
+    missingDimImageSnippets = [],
+    deadLinksCount = 0,
+    deadLinkSnippets = [],
+    isBoilerplateTitle = false,
+    zoomBlocked,
+    viewportTagSnippet,
+  } = scrapedDom.accessibilityMetrics;
   const { unlabeledInputsCount, unlabeledInputSnippets = [] } = scrapedDom.formsAndInputs;
 
   if (limitation.limited) {
     findings.push({
       id: `LIMITATION_${limitation.code}`,
       title: limitation.title,
+      plainEnglishImpact:
+        'This page requires JavaScript execution or authentication before its real checkout/product content appears. Static HTML tools cannot verify what shoppers see.',
       severity: 'UNVERIFIED',
       claimType: 'OBSERVED_FACT',
       evidenceSource: 'STATIC_HTML',
@@ -933,7 +967,9 @@ function buildEvidenceFindings(scrapedDom, hostname) {
   if (zoomBlocked) {
     findings.push({
       id: 'VIEWPORT_ZOOM_BLOCKED',
-      title: 'Viewport meta tag restricts pinch-to-zoom',
+      title: 'Viewport meta tag blocks mobile pinch-to-zoom',
+      plainEnglishImpact:
+        'Mobile shoppers cannot pinch-to-zoom on product photos, pricing, or fine print — causing immediate frustration on mobile screens.',
       severity: 'HIGH',
       claimType: 'OBSERVED_FACT',
       evidenceSource: 'STATIC_HTML',
@@ -955,7 +991,9 @@ function buildEvidenceFindings(scrapedDom, hostname) {
     const sample = unlabeledInputSnippets[0] || '<input type="text">';
     findings.push({
       id: 'UNLABELED_FORM_INPUTS',
-      title: `${unlabeledInputsCount} visible form input${unlabeledInputsCount === 1 ? '' : 's'} missing accessible label attributes`,
+      title: `${unlabeledInputsCount} visible form field${unlabeledInputsCount === 1 ? '' : 's'} missing accessible label & autofill hints`,
+      plainEnglishImpact:
+        'Mobile shoppers cannot use 1-tap phone/email/address autofill on unlabeled inputs and must type manually, increasing checkout and signup drop-off.',
       severity: unlabeledInputsCount >= 2 ? 'MEDIUM' : 'LOW',
       claimType: 'OBSERVED_FACT',
       evidenceSource: 'STATIC_HTML',
@@ -969,7 +1007,7 @@ function buildEvidenceFindings(scrapedDom, hostname) {
       remediationEligible: true,
       remediationSnippet: {
         del: sample,
-        add: sample.replace(/<input\b/i, '<input id="accessible-field" aria-label="Descriptive field label"'),
+        add: sample.replace(/<input\b/i, '<input id="accessible-field" aria-label="Descriptive field label" autocomplete="on"'),
       },
     });
   }
@@ -978,7 +1016,9 @@ function buildEvidenceFindings(scrapedDom, hostname) {
     const sampleImg = missingAltImageSnippets[0] || '<img src="...">';
     findings.push({
       id: 'IMAGES_MISSING_ALT',
-      title: `${imagesMissingAlt} image${imagesMissingAlt === 1 ? '' : 's'} missing alt attribute`,
+      title: `${imagesMissingAlt} product/page image${imagesMissingAlt === 1 ? '' : 's'} missing alt description`,
+      plainEnglishImpact:
+        'Images without alt descriptions hurt Google Shopping / SEO discovery and leave screen-reader or slow-connection users with blank boxes.',
       severity: imagesMissingAlt >= 2 ? 'MEDIUM' : 'LOW',
       claimType: 'OBSERVED_FACT',
       evidenceSource: 'STATIC_HTML',
@@ -991,7 +1031,81 @@ function buildEvidenceFindings(scrapedDom, hostname) {
       remediationEligible: true,
       remediationSnippet: {
         del: sampleImg,
-        add: sampleImg.replace(/<img\b/i, '<img alt="Descriptive image text"'),
+        add: sampleImg.replace(/<img\b/i, '<img alt="Descriptive product or feature text"'),
+      },
+    });
+  }
+
+  if (deadLinksCount > 0) {
+    const sampleDead = deadLinkSnippets[0] || '<a href="#">Link</a>';
+    findings.push({
+      id: 'DEAD_OR_PLACEHOLDER_LINKS',
+      title: `${deadLinksCount} dead or placeholder link${deadLinksCount === 1 ? '' : 's'} (href="#" or empty)`,
+      plainEnglishImpact:
+        'Customers tapping a link with href="#" get jumped to the top of the page instead of navigating — a common unfinished template bug that kills trust.',
+      severity: deadLinksCount >= 3 ? 'MEDIUM' : 'LOW',
+      claimType: 'OBSERVED_FACT',
+      evidenceSource: 'STATIC_HTML',
+      role: 'link',
+      accessibleName: null,
+      diagnosticSelector: 'a[href="#"]',
+      markupSnippet: sampleDead,
+      confidence: 0.96,
+      limitationNote: 'Observed href="#" / empty href in static HTML. If JS attaches a click handler, use a semantic <button type="button"> instead.',
+      remediationEligible: true,
+      remediationSnippet: {
+        del: sampleDead,
+        add: sampleDead
+          .replace(/^<a\b/i, '<button type="button"')
+          .replace(/\bhref\s*=\s*["'][^"']*["']\s*/i, '')
+          .replace(/<\/a>$/i, '</button>'),
+      },
+    });
+  }
+
+  if (imagesMissingDimensions >= 3) {
+    const sampleDim = missingDimImageSnippets[0] || '<img src="...">';
+    findings.push({
+      id: 'IMAGES_MISSING_DIMENSIONS_CLS',
+      title: `${imagesMissingDimensions} images missing explicit width/height attributes (Mobile Layout Shift risk)`,
+      plainEnglishImpact:
+        'On mobile 4G, images without reserved width & height pop in late and push buttons down right as a customer tries to tap Buy.',
+      severity: 'LOW',
+      claimType: 'OBSERVED_FACT',
+      evidenceSource: 'STATIC_HTML',
+      role: 'img',
+      accessibleName: null,
+      diagnosticSelector: 'img:not([width]):not([height])',
+      markupSnippet: sampleDim,
+      confidence: 0.95,
+      limitationNote: 'Observed static <img> without width/height attributes. CSS aspect-ratio rules may mitigate this at runtime.',
+      remediationEligible: true,
+      remediationSnippet: {
+        del: sampleDim,
+        add: sampleDim.replace(/<img\b/i, '<img width="600" height="600" loading="lazy"'),
+      },
+    });
+  }
+
+  if (isBoilerplateTitle) {
+    findings.push({
+      id: 'VIBE_CODE_BOILERPLATE_TITLE',
+      title: `Unfinished framework starter title ("${scrapedDom.pageTitle}")`,
+      plainEnglishImpact:
+        'Browser tabs and Google search results still show the default starter template name ("Vite + React" / "Create Next App") instead of your brand.',
+      severity: 'MEDIUM',
+      claimType: 'OBSERVED_FACT',
+      evidenceSource: 'STATIC_HTML',
+      role: 'document',
+      accessibleName: scrapedDom.pageTitle,
+      diagnosticSelector: 'head > title',
+      markupSnippet: `<title>${scrapedDom.pageTitle}</title>`,
+      confidence: 0.99,
+      limitationNote: 'Observed directly in static <title> element.',
+      remediationEligible: true,
+      remediationSnippet: {
+        del: `<title>${scrapedDom.pageTitle}</title>`,
+        add: `<title>${hostname} — Official Store & Product</title>`,
       },
     });
   }
@@ -1007,6 +1121,8 @@ function buildEvidenceFindings(scrapedDom, hostname) {
     findings.push({
       id: `CONTROL_A11Y_${i + 1}`,
       title: ctrl.auditReason,
+      plainEnglishImpact:
+        'Buttons or links without a clear label or ID are harder for mobile voice/screen navigation and automated checkout checks to verify.',
       severity: 'LOW',
       claimType: ctrl.claimType || 'OBSERVED_FACT',
       evidenceSource: 'STATIC_HTML',
@@ -1027,6 +1143,49 @@ function buildEvidenceFindings(scrapedDom, hostname) {
   return findings;
 }
 
+function buildFounderActionKit(targetUrl, hostname, scrapedDom, findings, severity, domHealthScore, limitation) {
+  if (limitation.limited) {
+    return {
+      aiFixPrompt: `Audit target ${targetUrl} returned ${limitation.code} (${limitation.title}) in static HTML mode. Connect Pramana's browser runner or enable server-side rendering (SSR) for critical checkout/cart routes so customers and search engines don't hit an empty JavaScript shell.`,
+      founderOutreachMessage: `Hi ${hostname} team — I ran a quick mobile HTML check on ${targetUrl} using Pramana AI. Your initial HTML response returns "${limitation.title}" (${limitation.code}) before JavaScript bundles finish loading on mobile networks. Happy to share the trace if useful!`,
+    };
+  }
+
+  const actionable = findings.filter((f) => f.remediationEligible);
+  if (actionable.length === 0) {
+    return {
+      aiFixPrompt: `Static HTML check on ${targetUrl} passed (${domHealthScore}/100) with 0 static markup issues. Next step: verify mobile 390px layout overlap and payment webhook timing in an interactive browser session.`,
+      founderOutreachMessage: `Hi ${hostname} team — your static HTML & accessibility baseline on ${targetUrl} scored ${domHealthScore}/100. If you ever want automated 390px mobile layout and checkout flow checks on every deploy, we built Pramana AI for fast-moving teams.`,
+    };
+  }
+
+  const promptLines = [
+    `Fix these ${actionable.length} mobile UX & HTML issues found on ${targetUrl} (keep all existing visual styling intact):`,
+    '',
+    ...actionable.map(
+      (f, idx) =>
+        `${idx + 1}. [${f.id}] ${f.title}\n   - Why it matters: ${f.plainEnglishImpact}\n   - Observed broken HTML: ${f.markupSnippet}\n   - Replace with: ${f.remediationSnippet?.add || 'Add explicit aria-label, alt, or width/height attributes.'}`
+    ),
+  ];
+
+  const topTitles = actionable.slice(0, 3).map((f) => `• ${f.title} (${f.plainEnglishImpact})`).join('\n');
+  const outreach = [
+    `Hi ${hostname} team,`,
+    '',
+    `I was checking out ${targetUrl} on mobile and ran a quick read-only UX & HTML audit with Pramana AI (Scored ${domHealthScore}/100 · Severity: ${severity}).`,
+    '',
+    `Spotted ${actionable.length} quick-win fix${actionable.length === 1 ? '' : 'es'} that can improve mobile shopper experience right away:`,
+    topTitles,
+    '',
+    `I already generated the exact copy-paste HTML/AI fix snippet for your codebase — happy to send the shareable report link over for free if you want to drop it into Cursor/Lovable or forward to your dev!`,
+  ].join('\n');
+
+  return {
+    aiFixPrompt: promptLines.join('\n'),
+    founderOutreachMessage: outreach,
+  };
+}
+
 export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom, options = {}) {
   const apiKey = options.skipLlm ? null : process.env.GEMINI_API_KEY;
   let activeModel = 'deterministic-static-html-parser';
@@ -1041,17 +1200,29 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
   };
 
   const primaryHeading = scrapedDom.headings[0]?.text || scrapedDom.pageTitle;
-  const { imagesMissingAlt, estimatedDomNodes, totalScripts, zoomBlocked, totalImages } =
-    scrapedDom.accessibilityMetrics;
+  const {
+    imagesMissingAlt,
+    imagesMissingDimensions = 0,
+    deadLinksCount = 0,
+    isBoilerplateTitle = false,
+    estimatedDomNodes,
+    totalScripts,
+    zoomBlocked,
+    totalImages,
+  } = scrapedDom.accessibilityMetrics;
   const { formsCount, inputsCount, unlabeledInputsCount } = scrapedDom.formsAndInputs;
   const surfaceInfo = scrapedDom.surfaceInfo;
   const limitation = scrapedDom.auditLimitation || { limited: false, code: 'NONE' };
 
   const interactiveCount = scrapedDom.interactiveElements.length;
   const warnCount = scrapedDom.interactiveElements.filter((el) => el.auditStatus !== 'PASS').length;
+  const extraStartupFlags =
+    (deadLinksCount > 0 ? 1 : 0) +
+    (imagesMissingDimensions >= 3 ? 1 : 0) +
+    (isBoilerplateTitle ? 1 : 0);
   const totalFlags = limitation.limited
     ? 0
-    : warnCount + imagesMissingAlt + unlabeledInputsCount + (zoomBlocked ? 1 : 0);
+    : warnCount + imagesMissingAlt + unlabeledInputsCount + (zoomBlocked ? 1 : 0) + extraStartupFlags;
 
   // T-305: Suppress numeric readiness score whenever limitation.limited is true!
   let domHealthScore = null;
@@ -1060,7 +1231,10 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
       warnCount * 3 +
       imagesMissingAlt * 2.5 +
       unlabeledInputsCount * 4 +
-      (zoomBlocked ? 8 : 0);
+      (zoomBlocked ? 8 : 0) +
+      Math.min(9, deadLinksCount * 1.5) +
+      (imagesMissingDimensions >= 3 ? 3 : 0) +
+      (isBoilerplateTitle ? 5 : 0);
     domHealthScore = Math.max(40, Math.min(99, Math.round(99 - penalty)));
   }
 
@@ -1082,6 +1256,15 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
   const findings = buildEvidenceFindings(scrapedDom, hostname);
   const primaryFinding = findings.find((f) => f.remediationEligible) || null;
   const remediationEligible = Boolean(!limitation.limited && primaryFinding);
+  const actionKit = buildFounderActionKit(
+    targetUrl,
+    hostname,
+    scrapedDom,
+    findings,
+    severity,
+    domHealthScore,
+    limitation
+  );
 
   const conversionDropPct = null;
   const dropNumber = null;
@@ -1259,6 +1442,8 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
       summary,
       targetSelector,
       findings,
+      aiFixPrompt: actionKit.aiFixPrompt,
+      founderOutreachMessage: actionKit.founderOutreachMessage,
       rootCauseLogs,
       diffFile: remediationEligible
         ? `suggested-fix-${primaryFinding.id.toLowerCase()}.html (No Repo Connected)`

@@ -178,3 +178,26 @@ test('T-306: Honest pending state, full-URL binding, error handling, and out-of-
   // 6. URL normalization preserves paths cleanly
   assert.equal(normalizeAuditUrl('apple.com/shop/bag/'), 'https://apple.com/shop/bag');
 });
+
+test('Startup / Vibe-Coded / Small D2C detector flags dead links, boilerplate title, CLS images, and generates AI Fix Prompt + Founder Outreach', async () => {
+  const vibeHtml = `<!doctype html><html><head><title>Vite + React</title></head><body>
+    <main>
+      <h1>FreshD2C</h1>
+      <a href="#">Buy Now</a>
+      <a href="javascript:void(0)">Apply Coupon</a>
+      <input type="email" />
+      <img src="/p1.png" /><img src="/p2.png" alt="a" /><img src="/p3.png" alt="b" /><img src="/p4.png" alt="c" /><img src="/p5.png" alt="d" />
+    </main>
+  </body></html>`;
+  const parsed = parseLiveHtmlDocument(vibeHtml, 'https://freshd2c.in/checkout', 200, 'text/html', 'edge', 95, null);
+  const synthesized = await synthesizeCustomSiteAudit('https://freshd2c.in/checkout', 'freshd2c.in', parsed, { skipLlm: true });
+
+  const ids = synthesized.customFinding.findings.map((f) => f.id);
+  assert.ok(ids.includes('DEAD_OR_PLACEHOLDER_LINKS'), 'Expected DEAD_OR_PLACEHOLDER_LINKS');
+  assert.ok(ids.includes('VIBE_CODE_BOILERPLATE_TITLE'), 'Expected VIBE_CODE_BOILERPLATE_TITLE');
+  assert.ok(ids.includes('IMAGES_MISSING_DIMENSIONS_CLS'), 'Expected IMAGES_MISSING_DIMENSIONS_CLS');
+  assert.ok(synthesized.customFinding.findings.every((f) => Boolean(f.plainEnglishImpact)), 'Every finding must have plainEnglishImpact');
+  assert.match(synthesized.customFinding.aiFixPrompt, /freshd2c\.in/);
+  assert.match(synthesized.customFinding.founderOutreachMessage, /Hi freshd2c\.in team/);
+});
+
