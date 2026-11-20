@@ -11,7 +11,6 @@ import {
   resetLiveAudit,
 } from "./utils/liveAuditState";
 import { apiUrl } from "./utils/apiBase";
-import { enrichAuditWithFirebaseGemini } from "./services/geminiLiveAuditor";
 
 // Internal surface registry preserved for contract verification
 const INTERNAL_SURFACE_ROUTES = ["/demo-store/index.html", "/proof/index.html", "/deck/index.html"];
@@ -1346,8 +1345,30 @@ function LiveMobileViewport({ customAudit }) {
               </div>
             ) : (
               <div style={{ padding: 12, height: "100%", overflowY: "auto", fontFamily: "var(--sans)", fontSize: 12, color: "#0B1020", background: "#fff" }}>
-                {/* Mini Live Visual Header or OG Preview */}
-                {hasPreviewHtml && !limitation.limited && (
+                {/* Mini Live Visual Header: Real Rendered Screenshot (Playwright/Lighthouse) or Sanitized Live Mobile DOM */}
+                {dom.renderedScreenshotDataUrl ? (
+                  <div style={{ marginBottom: 10, borderRadius: 8, overflow: "hidden", border: "1.5px solid #00A36C", position: "relative", background: "#F6F7FB" }}>
+                    <img
+                      src={dom.renderedScreenshotDataUrl}
+                      alt={`Rendered 390px mobile screenshot of ${customAudit.hostname}`}
+                      style={{ width: "100%", height: 150, objectFit: "cover", objectPosition: "top", display: "block" }}
+                    />
+                    <span
+                      style={{
+                        position: "absolute",
+                        right: 6,
+                        bottom: 6,
+                        background: "#007A51",
+                        color: "#fff",
+                        font: "700 9px var(--mono)",
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                      }}
+                    >
+                      REAL RENDERED SCREENSHOT
+                    </span>
+                  </div>
+                ) : hasPreviewHtml && !limitation.limited ? (
                   <div style={{ height: 118, overflow: "hidden", borderRadius: 8, border: "1.5px solid #F0431F", marginBottom: 10, position: "relative", background: "#F6F7FB" }}>
                     <iframe
                       srcDoc={dom.mobilePreviewHtml}
@@ -1370,7 +1391,7 @@ function LiveMobileViewport({ customAudit }) {
                       LIVE 390PX DOM SNAPSHOT
                     </span>
                   </div>
-                )}
+                ) : null}
 
                 {limitation.limited && (
                   <div style={{ padding: "10px 11px", borderRadius: 10, background: "#FFF0C2", border: "1.5px solid #FFB400", marginBottom: 10 }}>
@@ -1535,7 +1556,9 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
       <div className="report-bar">
         <div style={{ minWidth: 0, flex: "1 1 420px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span className="badge-pill cyan">STATIC HTML ONLY</span>
+            <span className={"badge-pill " + (finding.capabilityScope === "RENDERED_MOBILE_BROWSER" ? "ok" : "cyan")}>
+              {finding.capabilityScope === "RENDERED_MOBILE_BROWSER" ? "RENDERED MOBILE BROWSER" : "STATIC HTML ONLY"}
+            </span>
             <span className="badge-pill blue">{finding.surfaceCategory || "Public Surface"}</span>
             <span className={"badge-pill " + sevTone}>Verdict: {sev}</span>
             <span className="mono tnum" style={{ fontSize: 11.5, color: "var(--ink2)" }}>
@@ -2354,17 +2377,15 @@ export default function App() {
       }
 
       if (data.isCustomUrl) {
-        const enriched = await enrichAuditWithFirebaseGemini(data);
-        if (reqId !== liveAuditRef.current.requestId) return;
-        const settled = resolveLiveAudit(liveAuditRef.current, reqId, enriched);
+        const settled = resolveLiveAudit(liveAuditRef.current, reqId, data);
         liveAuditRef.current = settled;
         setLiveAudit(settled);
         setAudit({ state: "done", step: 4, ran: true });
-        const sev = enriched.customFinding?.severity || "UNVERIFIED";
-        const score = enriched.customFinding?.domHealthScore;
+        const sev = data.customFinding?.severity || "UNVERIFIED";
+        const score = data.customFinding?.domHealthScore;
         pushHistory({
-          url: enriched.targetUrl || pendingState.submittedUrl,
-          host: `${enriched.hostname}${(() => { try { const p = new URL(enriched.targetUrl).pathname; return p && p !== "/" ? p : ""; } catch { return ""; } })()}`,
+          url: data.targetUrl || pendingState.submittedUrl,
+          host: `${data.hostname}${(() => { try { const p = new URL(data.targetUrl).pathname; return p && p !== "/" ? p : ""; } catch { return ""; } })()}`,
           mode: "LIVE",
           verdict: typeof score === "number" ? `${sev} (${score}/100)` : sev,
         });
@@ -2511,7 +2532,7 @@ export default function App() {
                     {[
                       ["boldcare.in (D2C)", "https://boldcare.in"],
                       ["plumgoodness.com (D2C)", "https://plumgoodness.com"],
-                      ["beminimalist.co (D2C)", "https://beminimalist.co"],
+                      ["github.com (Non-Checkout)", "https://github.com"],
                       ["demoblaze.com (Store)", "https://demoblaze.com"],
                       ["apple.com/shop/bag (JS Shell)", "https://www.apple.com/shop/bag"],
                     ].map(([label, target]) => (

@@ -1,0 +1,13 @@
+{
+  "name": "pramana-ai-cloudrun-worker",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Google Cloud Run Playwright + Gemini 3.5 Flash-Lite mobile audit worker for Pramana AI",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}

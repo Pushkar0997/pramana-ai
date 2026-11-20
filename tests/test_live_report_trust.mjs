@@ -202,3 +202,41 @@ test('Startup / Vibe-Coded / Small D2C detector flags dead links, boilerplate ti
   assert.match(parsed.mobilePreviewHtml, /pramana-live-xray/);
 });
 
+test('Security & Rendered-Browser Gate: Zero client-side API keys in src/vite.config, and real renderedCapture lifts JS-shell limitation', async () => {
+  const viteCfg = fs.readFileSync(path.join(__dirname, '..', 'vite.config.js'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'App.jsx'), 'utf8');
+  assert.doesNotMatch(viteCfg, /VITE_GEMINI_API_KEY\s*["']\s*:\s*JSON\.stringify/, 'Must not bundle GEMINI_API_KEY into client dist');
+  assert.doesNotMatch(appSrc, /generativelanguage\.googleapis\.com/, 'Browser code must never call Gemini API directly with client key');
+
+  const html = readFixture('js_shell_with_heavy_nav.html');
+  const url = 'https://www.apple.com/shop/bag';
+  const parsed = parseLiveHtmlDocument(html, url, 200, 'text/html', 'edge', 140, null);
+  const renderedCapture = {
+    engine: 'PLAYWRIGHT_CHROMIUM_CLOUD_RUN',
+    renderedScreenshotDataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
+    metrics: { accessibilityScore: 84, scrollWidth: 420, viewportWidth: 390, consoleErrorsCount: 1 },
+    findings: [
+      {
+        id: 'RENDERED_MOBILE_HORIZONTAL_OVERFLOW',
+        title: '390px mobile horizontal overflow detected',
+        plainEnglishImpact: 'Content extends past 390px viewport.',
+        severity: 'HIGH',
+        claimType: 'OBSERVED_FACT',
+        evidenceSource: 'RENDERED_BROWSER',
+        role: 'button',
+        diagnosticSelector: 'button.checkout',
+        markupSnippet: '<button class="checkout">Check Out</button>',
+        remediationEligible: true,
+        remediationSnippet: { del: '<button class="checkout">', add: '<button class="checkout max-w-full">' },
+      },
+    ],
+  };
+  const synthesized = await synthesizeCustomSiteAudit(url, 'apple.com', parsed, { skipLlm: true, renderedCapture });
+  assert.equal(synthesized.customFinding.capabilityScope, 'RENDERED_MOBILE_BROWSER');
+  assert.equal(synthesized.customFinding.auditMode, 'LIVE_RENDERED_BROWSER_AUDIT');
+  assert.equal(synthesized.customFinding.domHealthScore, 84);
+  assert.equal(synthesized.customFinding.severity, 'HIGH');
+  assert.equal(synthesized.customFinding.revenueMetricApplicable, false);
+});
+
+

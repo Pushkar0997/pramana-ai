@@ -930,7 +930,117 @@ async function scrapeLiveDom(targetUrl) {
   }
 }
 
-async function callGoogleAiStudio(modelId, apiKey, prompt) {
+export async function fetchPageSpeedMobileEvidence(targetUrl) {
+  const psiKey = String(process.env.PAGESPEED_API_KEY || '').trim();
+  if (!psiKey) return null;
+
+  const params = new URLSearchParams({
+    url: targetUrl,
+    strategy: 'mobile',
+    key: psiKey,
+  });
+  params.append('category', 'accessibility');
+  params.append('category', 'performance');
+
+  const started = Date.now();
+  try {
+    const resp = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params.toString()}`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(7500),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const lhr = data?.lighthouseResult;
+    if (!lhr?.audits) return null;
+
+    const screenshotDataUrl = lhr.audits['final-screenshot']?.details?.data || null;
+    const perfScore = typeof lhr.categories?.performance?.score === 'number'
+      ? Math.round(lhr.categories.performance.score * 100)
+      : null;
+    const a11yScore = typeof lhr.categories?.accessibility?.score === 'number'
+      ? Math.round(lhr.categories.accessibility.score * 100)
+      : null;
+    const clsValue = typeof lhr.audits['cumulative-layout-shift']?.numericValue === 'number'
+      ? Number(lhr.audits['cumulative-layout-shift'].numericValue.toFixed(3))
+      : null;
+    const lcpMs = typeof lhr.audits['largest-contentful-paint']?.numericValue === 'number'
+      ? Math.round(lhr.audits['largest-contentful-paint'].numericValue)
+      : null;
+
+    const renderedFindings = [];
+    const auditMap = [
+      {
+        key: 'color-contrast',
+        id: 'RENDERED_COLOR_CONTRAST',
+        severity: 'HIGH',
+        impact: 'Text or button contrast falls below WCAG AA 4.5:1 on mobile screens, making CTAs hard to read outdoors.',
+      },
+      {
+        key: 'target-size',
+        id: 'RENDERED_TAP_TARGET_SIZE',
+        severity: 'MEDIUM',
+        impact: 'Interactive buttons or links are too small or crowded for thumbs on a 390px mobile screen.',
+      },
+      {
+        key: 'errors-in-console',
+        id: 'RENDERED_CONSOLE_ERRORS',
+        severity: 'HIGH',
+        impact: 'JavaScript runtime errors occurred while loading the mobile page, risking broken buttons or checkout stalls.',
+      },
+      {
+        key: 'cumulative-layout-shift',
+        id: 'RENDERED_MOBILE_CLS',
+        severity: 'MEDIUM',
+        impact: 'Visible elements shifted position during mobile page load (high CLS), causing accidental taps.',
+      },
+    ];
+
+    for (const spec of auditMap) {
+      const a = lhr.audits[spec.key];
+      if (!a || a.score === null || a.score >= 0.9) continue;
+      const firstItem = a.details?.items?.[0];
+      const snippet = firstItem?.node?.snippet || a.displayValue || a.title;
+      const selector = firstItem?.node?.selector || spec.key;
+      renderedFindings.push({
+        id: spec.id,
+        title: `${a.title}${a.displayValue ? ` (${a.displayValue})` : ''}`,
+        plainEnglishImpact: spec.impact,
+        severity: spec.severity,
+        claimType: 'OBSERVED_FACT',
+        evidenceSource: 'RENDERED_BROWSER',
+        role: firstItem?.node?.nodeLabel ? 'rendered-element' : 'document',
+        accessibleName: firstItem?.node?.nodeLabel || null,
+        diagnosticSelector: String(selector).slice(0, 90),
+        markupSnippet: truncateSnippet(snippet, 140),
+        confidence: 0.98,
+        limitationNote: 'Measured in a real Google Lighthouse mobile Chromium runtime via PageSpeed Insights API.',
+        remediationEligible: true,
+        remediationSnippet: {
+          del: truncateSnippet(snippet, 140),
+          add: `/* Fix ${a.title} on ${String(selector).slice(0, 60)}: ensure WCAG AA >=4.5:1 contrast, >=44px tap target, and explicit image dimensions */`,
+        },
+      });
+    }
+
+    return {
+      engine: 'GOOGLE_PAGESPEED_LIGHTHOUSE_MOBILE',
+      latencyMs: Date.now() - started,
+      renderedScreenshotDataUrl: screenshotDataUrl,
+      metrics: {
+        performanceScore: perfScore,
+        accessibilityScore: a11yScore,
+        clsValue,
+        lcpMs,
+        consoleErrorsCount: lhr.audits['errors-in-console']?.details?.items?.length || 0,
+      },
+      findings: renderedFindings,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function callGoogleAiStudio(modelId, apiKey, prompt, screenshotDataUrl = null) {
   const started = Date.now();
   const cleanKey = String(apiKey || '').trim().replace(/^["']|["']$/g, '');
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(cleanKey)}`;
@@ -942,13 +1052,26 @@ async function callGoogleAiStudio(modelId, apiKey, prompt) {
     ...(modelId === 'gemini-3.1-flash-lite' ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
   };
 
+  const parts = [{ text: prompt }];
+  if (!isGemma && typeof screenshotDataUrl === 'string' && screenshotDataUrl.startsWith('data:image/')) {
+    const match = screenshotDataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (match) {
+      parts.push({
+        inlineData: {
+          mimeType: match[1],
+          data: match[2],
+        },
+      });
+    }
+  }
+
   try {
     const resp = await fetch(endpoint, {
       method: 'POST',
-      signal: AbortSignal.timeout(4800),
+      signal: AbortSignal.timeout(5200),
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts }],
         generationConfig,
       }),
     });
@@ -1258,15 +1381,30 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
     totalImages,
   } = scrapedDom.accessibilityMetrics;
   const { formsCount, inputsCount, unlabeledInputsCount } = scrapedDom.formsAndInputs;
+  const renderedCapture = options.renderedCapture || null;
+  const hasRenderedBrowser = Boolean(renderedCapture && renderedCapture.renderedScreenshotDataUrl);
   const surfaceInfo = scrapedDom.surfaceInfo;
-  const limitation = scrapedDom.auditLimitation || { limited: false, code: 'NONE' };
+  const rawLimitation = scrapedDom.auditLimitation || { limited: false, code: 'NONE' };
+  // If a real mobile browser (Playwright or Lighthouse) rendered the SPA, lift CLIENT_SPA_SHELL limitation!
+  const limitation =
+    hasRenderedBrowser && rawLimitation.code === 'CLIENT_SPA_SHELL'
+      ? {
+          limited: false,
+          code: 'NONE',
+          title: `Rendered via ${renderedCapture.engine}`,
+          explanation: `Static HTML was a client SPA shell, so Pramana executed a real mobile Chromium render (${renderedCapture.engine}) to inspect the hydrated page.`,
+          signals: [],
+        }
+      : rawLimitation;
 
   const interactiveCount = scrapedDom.interactiveElements.length;
   const warnCount = scrapedDom.interactiveElements.filter((el) => el.auditStatus !== 'PASS').length;
+  const renderedFindings = Array.isArray(renderedCapture?.findings) ? renderedCapture.findings : [];
   const extraStartupFlags =
     (deadLinksCount > 0 ? 1 : 0) +
     (imagesMissingDimensions >= 3 ? 1 : 0) +
-    (isBoilerplateTitle ? 1 : 0);
+    (isBoilerplateTitle ? 1 : 0) +
+    renderedFindings.length;
   const totalFlags = limitation.limited
     ? 0
     : warnCount + imagesMissingAlt + unlabeledInputsCount + (zoomBlocked ? 1 : 0) + extraStartupFlags;
@@ -1274,15 +1412,20 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
   // T-305: Suppress numeric readiness score whenever limitation.limited is true!
   let domHealthScore = null;
   if (!limitation.limited) {
-    const penalty =
-      warnCount * 3 +
-      imagesMissingAlt * 2.5 +
-      unlabeledInputsCount * 4 +
-      (zoomBlocked ? 8 : 0) +
-      Math.min(9, deadLinksCount * 1.5) +
-      (imagesMissingDimensions >= 3 ? 3 : 0) +
-      (isBoilerplateTitle ? 5 : 0);
-    domHealthScore = Math.max(40, Math.min(99, Math.round(99 - penalty)));
+    if (hasRenderedBrowser && typeof renderedCapture?.metrics?.accessibilityScore === 'number') {
+      domHealthScore = renderedCapture.metrics.accessibilityScore;
+    } else {
+      const penalty =
+        warnCount * 3 +
+        imagesMissingAlt * 2.5 +
+        unlabeledInputsCount * 4 +
+        (zoomBlocked ? 8 : 0) +
+        Math.min(9, deadLinksCount * 1.5) +
+        (imagesMissingDimensions >= 3 ? 3 : 0) +
+        (isBoilerplateTitle ? 5 : 0) +
+        renderedFindings.length * 6;
+      domHealthScore = Math.max(40, Math.min(99, Math.round(99 - penalty)));
+    }
   }
 
   let severity = 'PASS';
@@ -1290,7 +1433,12 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
     severity = 'UNVERIFIED';
   } else if (surfaceInfo.hasDirectPaymentFlow && totalFlags >= 3) {
     severity = 'CRITICAL';
-  } else if ((surfaceInfo.hasDirectPaymentFlow && totalFlags >= 1) || totalFlags >= 6 || zoomBlocked) {
+  } else if (
+    (surfaceInfo.hasDirectPaymentFlow && totalFlags >= 1) ||
+    totalFlags >= 6 ||
+    zoomBlocked ||
+    renderedFindings.some((f) => f.severity === 'HIGH' || f.severity === 'CRITICAL')
+  ) {
     severity = 'HIGH';
   } else if (totalFlags >= 2) {
     severity = 'MEDIUM';
@@ -1300,7 +1448,8 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
     severity = 'PASS';
   }
 
-  const findings = buildEvidenceFindings(scrapedDom, hostname);
+  const staticFindings = buildEvidenceFindings({ ...scrapedDom, auditLimitation: limitation }, hostname);
+  const findings = [...renderedFindings, ...staticFindings];
   const primaryFinding = findings.find((f) => f.remediationEligible) || null;
   const remediationEligible = Boolean(!limitation.limited && primaryFinding);
   const actionKit = buildFounderActionKit(
@@ -1320,25 +1469,31 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
 
   if (apiKey && !limitation.limited) {
     const findingsSummary = findings
-      .slice(0, 4)
-      .map((f) => `[${f.id}] ${f.title} (snippet: ${f.markupSnippet})`)
+      .slice(0, 5)
+      .map((f) => `[${f.id} · ${f.evidenceSource}] ${f.title} (snippet: ${f.markupSnippet})`)
       .join('; ');
     const prompt = [
-      `You are Pramana AI auditing STATIC PUBLIC HTML of ${targetUrl} (hostname: ${hostname}).`,
+      `You are Pramana AI auditing ${hasRenderedBrowser ? 'a RENDERED 390x844 MOBILE PAGE (screenshot attached)' : 'STATIC PUBLIC HTML'} of ${targetUrl} (hostname: ${hostname}).`,
       `Surface Category: ${surfaceInfo.surfaceCategory}. Has Direct Payment Flow: ${surfaceInfo.hasDirectPaymentFlow}.`,
-      `Calibrated Severity: ${severity}. Static HTML Score: ${domHealthScore}/100.`,
+      `Calibrated Severity: ${severity}. Score: ${domHealthScore}/100.`,
       `Observed facts: pageTitle="${scrapedDom.pageTitle}", primaryHeading="${primaryHeading}",`,
       `interactiveCount=${interactiveCount}, warnCount=${warnCount}, unlabeledInputsCount=${unlabeledInputsCount}, imagesMissingAlt=${imagesMissingAlt}, deadLinksCount=${deadLinksCount}, imagesMissingDimensions=${imagesMissingDimensions}, estimatedDomNodes=${estimatedDomNodes}.`,
-      `Concrete findings: ${findingsSummary || 'None (clean static HTML)'}.`,
-      'IMPORTANT: Do NOT invent conversion drop percentages, revenue loss, or browser layout/contrast claims. Return strict JSON with keys: anomalyTitle (string), summary (2 clear sentences for a non-technical startup/D2C founder citing exact observed HTML issues and how to fix them).',
+      `Concrete findings: ${findingsSummary || 'None'}.`,
+      'IMPORTANT: Do NOT invent conversion drop percentages or dollar revenue loss. Return strict JSON with keys: anomalyTitle (string), summary (2 clear sentences for a non-technical startup/D2C founder citing exact observed defects and how to fix them).',
     ].join(' ');
 
     for (const candidateModel of ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemma-4-31b-it']) {
-      const r = await callGoogleAiStudio(candidateModel, apiKey, prompt);
+      const r = await callGoogleAiStudio(
+        candidateModel,
+        apiKey,
+        prompt,
+        hasRenderedBrowser ? renderedCapture.renderedScreenshotDataUrl : null
+      );
       providerCalls.push({
         model: candidateModel,
         status: r.parsed ? 'OK' : r.error || `HTTP_${r.httpStatus || 'ERR'}`,
         latencyMs: r.latencyMs,
+        multimodalVision: Boolean(hasRenderedBrowser && !candidateModel.startsWith('gemma-')),
       });
       if (r.parsed) {
         activeModel = candidateModel;
@@ -1349,7 +1504,7 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
             inputTokens: r.usageMetadata.promptTokenCount ?? null,
             outputTokens: r.usageMetadata.candidatesTokenCount ?? null,
             totalTokens: r.usageMetadata.totalTokenCount ?? null,
-            note: `Measured from Google AI Studio (${candidateModel}) usageMetadata.`,
+            note: `Measured server-side from Google AI Studio (${candidateModel}) usageMetadata.`,
           };
         }
         break;
@@ -1439,13 +1594,24 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
     },
   };
 
+  const resolvedAuditMode = hasRenderedBrowser ? 'LIVE_RENDERED_BROWSER_AUDIT' : 'LIVE_PUBLIC_HTML_SCRAPE';
+  const resolvedCapabilityScope = hasRenderedBrowser ? 'RENDERED_MOBILE_BROWSER' : 'STATIC_HTML_ONLY';
+
   return {
     activeModel,
-    executionMode: llmResult ? 'live_public_html_scrape_plus_gemini' : 'live_public_html_scrape',
+    executionMode: hasRenderedBrowser
+      ? llmResult
+        ? 'live_rendered_browser_plus_gemini_vision'
+        : 'live_rendered_browser'
+      : llmResult
+      ? 'live_public_html_scrape_plus_gemini'
+      : 'live_public_html_scrape',
     telemetry,
     customFinding: {
-      auditMode: 'LIVE_PUBLIC_HTML_SCRAPE',
-      capabilityScope: 'STATIC_HTML_ONLY',
+      auditMode: resolvedAuditMode,
+      capabilityScope: resolvedCapabilityScope,
+      renderedEngine: renderedCapture?.engine || null,
+      renderedMetrics: renderedCapture?.metrics || null,
       prAvailable: false,
       remediationEligible,
       remediationType,
@@ -1484,7 +1650,9 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
         {
           name: 'BrowserSandboxSkill',
           dur: `${(scrapedDom.fetchLatencyMs / 1000).toFixed(2)}s`,
-          desc: `Static HTTP GET (${scrapedDom.htmlKilobytes} KB, ${estimatedDomNodes} nodes, ${totalScripts} scripts) — No headless browser JS execution`,
+          desc: hasRenderedBrowser
+            ? `Rendered 390×844 mobile browser via ${renderedCapture.engine} + ${scrapedDom.htmlKilobytes} KB HTML`
+            : `Static HTTP GET (${scrapedDom.htmlKilobytes} KB, ${estimatedDomNodes} nodes, ${totalScripts} scripts) — Static HTML mode`,
           log: `GET ${targetUrl} -> HTTP ${scrapedDom.httpStatus} (${scrapedDom.fetchLatencyMs}ms)`,
         },
         {
@@ -1746,18 +1914,29 @@ export default async function handler(req, res) {
     });
   }
 
-  const scrapedDom = await scrapeLiveDom(targetUrl);
+  const [scrapedDom, psiCapture] = await Promise.all([
+    scrapeLiveDom(targetUrl),
+    req._renderedCapture ? Promise.resolve(req._renderedCapture) : fetchPageSpeedMobileEvidence(targetUrl),
+  ]);
+  const renderedCapture = req._renderedCapture || psiCapture || null;
+  if (renderedCapture?.renderedScreenshotDataUrl) {
+    scrapedDom.renderedScreenshotDataUrl = renderedCapture.renderedScreenshotDataUrl;
+    scrapedDom.renderedMetrics = renderedCapture.metrics || null;
+    scrapedDom.renderedEngine = renderedCapture.engine || null;
+  }
+
   const { activeModel, executionMode, telemetry, customFinding } = await synthesizeCustomSiteAudit(
     targetUrl,
     hostname,
-    scrapedDom
+    scrapedDom,
+    { renderedCapture }
   );
   const totalLatencyMs = Math.max(scrapedDom.fetchLatencyMs, Date.now() - startedAt);
 
   return res.status(200).json({
     ok: true,
-    auditMode: 'LIVE_PUBLIC_HTML_SCRAPE',
-    capabilityScope: 'STATIC_HTML_ONLY',
+    auditMode: customFinding.auditMode,
+    capabilityScope: customFinding.capabilityScope,
     isPresetFixture: false,
     isCustomUrl: true,
     is_custom_url: true,
@@ -1768,7 +1947,7 @@ export default async function handler(req, res) {
     httpStatus: scrapedDom.httpStatus,
     latencyMs: totalLatencyMs,
     activeModel,
-    fallbackModel: 'gemini-3.5-flash-lite',
+    fallbackModel: 'gemini-3.1-flash-lite',
     executionMode,
     execution_mode: executionMode,
     revenue_metric_applicable: false,
