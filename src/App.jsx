@@ -11,6 +11,7 @@ import {
   resetLiveAudit,
 } from "./utils/liveAuditState";
 import { apiUrl } from "./utils/apiBase";
+import { enrichAuditWithFirebaseGemini } from "./services/geminiLiveAuditor";
 
 // Internal surface registry preserved for contract verification
 const INTERNAL_SURFACE_ROUTES = ["/demo-store/index.html", "/proof/index.html", "/deck/index.html"];
@@ -1231,43 +1232,46 @@ function UnverifiedErrorCard({ url, error, onRetry }) {
   );
 }
 
-/* ═════════════ Live 390×844 Mobile Viewport Capture Panel ═════════════ */
+/* ═════════════ Live 390×844 Mobile Viewport & Pinpointed Issue X-Ray ═════════════ */
 function LiveMobileViewport({ customAudit }) {
   const dom = customAudit.scrapedDom || {};
   const finding = customAudit.customFinding || {};
+  const findingsList = finding.findings || [];
+  const elements = dom.interactiveElements || [];
+  const warnControls = elements.filter((el) => el.auditStatus !== "PASS");
   const mobileVp = dom.mobileViewport || { width: 390, height: 844, frameAllowed: false, frameBlockedReason: null };
   const limitation = finding.auditLimitation || dom.auditLimitation || { limited: false };
-  const [viewMode, setViewMode] = useState(mobileVp.frameAllowed ? "iframe" : "dom");
+  const hasPreviewHtml = Boolean(dom.mobilePreviewHtml && dom.mobilePreviewHtml.trim().length > 40);
+  const canRenderLiveDom = Boolean(mobileVp.frameAllowed || hasPreviewHtml);
+  const [viewMode, setViewMode] = useState("issues");
 
   useEffect(() => {
-    setViewMode(mobileVp.frameAllowed ? "iframe" : "dom");
-  }, [customAudit.targetUrl, mobileVp.frameAllowed]);
-
-  const headings = dom.headings || [];
-  const elements = dom.interactiveElements || [];
+    setViewMode(findingsList.length > 0 || limitation.limited ? "issues" : canRenderLiveDom ? "iframe" : "issues");
+  }, [customAudit.targetUrl, findingsList.length, limitation.limited, canRenderLiveDom]);
 
   return (
     <div className="story">
       <div className="story-head" style={{ cursor: "default" }}>
         <div>
           <span className="kicker">Mobile Viewport · 390 × 844 px</span>
-          <span className="story-title">Live Mobile Capture</span>
+          <span className="story-title">
+            {findingsList.length > 0 ? `Pinpointed Mobile Issues (${findingsList.length})` : "Live Mobile Capture"}
+          </span>
         </div>
         <div className="seg" role="tablist" aria-label="Mobile view mode">
           <button
             type="button"
-            className={viewMode === "iframe" ? "on" : ""}
-            onClick={() => setViewMode("iframe")}
-            title={mobileVp.frameAllowed ? "Live embedded mobile frame" : `Site header (${mobileVp.frameBlockedReason || "X-Frame-Options"}) may block iframe`}
+            className={viewMode === "issues" ? "on" : ""}
+            onClick={() => setViewMode("issues")}
           >
-            Live Frame
+            Issues X-Ray ({findingsList.length})
           </button>
           <button
             type="button"
-            className={viewMode === "dom" ? "on" : ""}
-            onClick={() => setViewMode("dom")}
+            className={viewMode === "iframe" ? "on" : ""}
+            onClick={() => setViewMode("iframe")}
           >
-            Mobile DOM
+            Live 390px Render
           </button>
         </div>
       </div>
@@ -1283,76 +1287,182 @@ function LiveMobileViewport({ customAudit }) {
           </div>
           <div className="phone-viewport">
             {viewMode === "iframe" ? (
-              <iframe
-                src={customAudit.targetUrl}
-                title={`Live mobile preview of ${customAudit.hostname}`}
-                className="phone-iframe"
-                sandbox="allow-scripts allow-same-origin allow-forms"
-                referrerPolicy="no-referrer"
-              />
+              <div style={{ width: "100%", height: "100%", position: "relative" }}>
+                {mobileVp.frameAllowed ? (
+                  <iframe
+                    src={customAudit.targetUrl}
+                    title={`Live mobile preview of ${customAudit.hostname}`}
+                    className="phone-iframe"
+                    sandbox="allow-scripts allow-same-origin allow-forms"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : hasPreviewHtml ? (
+                  <iframe
+                    srcDoc={dom.mobilePreviewHtml}
+                    title={`Sanitized live mobile HTML render of ${customAudit.hostname}`}
+                    className="phone-iframe"
+                    sandbox="allow-same-origin"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <iframe
+                    src={customAudit.targetUrl}
+                    title={`Live mobile preview of ${customAudit.hostname}`}
+                    className="phone-iframe"
+                    sandbox="allow-scripts allow-same-origin"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                {findingsList.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 8,
+                      right: 8,
+                      bottom: 8,
+                      background: "rgba(11,16,32,0.92)",
+                      color: "#fff",
+                      borderRadius: 10,
+                      padding: "8px 10px",
+                      fontSize: 11,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span>
+                      <b style={{ color: "#FF6B4A" }}>● {findingsList.length} mobile defect{findingsList.length === 1 ? "" : "s"}</b> outlined on page
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("issues")}
+                      style={{ background: "#F0431F", color: "#fff", border: 0, borderRadius: 6, padding: "3px 8px", font: "700 10px var(--mono)" }}
+                    >
+                      Inspect →
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
-              <div style={{ padding: 14, height: "100%", overflowY: "auto", fontFamily: "var(--sans)", fontSize: 12.5, color: "#0B1020", background: "#fff" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <span className="badge-pill blue" style={{ fontSize: 9.5 }}>Parsed Mobile HTML</span>
-                  <span className="mono" style={{ fontSize: 10, color: "#636A82" }}>HTTP {customAudit.httpStatus ?? 0}</span>
-                </div>
+              <div style={{ padding: 12, height: "100%", overflowY: "auto", fontFamily: "var(--sans)", fontSize: 12, color: "#0B1020", background: "#fff" }}>
+                {/* Mini Live Visual Header or OG Preview */}
+                {hasPreviewHtml && !limitation.limited && (
+                  <div style={{ height: 118, overflow: "hidden", borderRadius: 8, border: "1.5px solid #F0431F", marginBottom: 10, position: "relative", background: "#F6F7FB" }}>
+                    <iframe
+                      srcDoc={dom.mobilePreviewHtml}
+                      title={`Mini mobile snapshot of ${customAudit.hostname}`}
+                      style={{ width: 390, height: 320, border: 0, transform: "scale(0.69)", transformOrigin: "top left", pointerEvents: "none" }}
+                      sandbox="allow-same-origin"
+                    />
+                    <span
+                      style={{
+                        position: "absolute",
+                        right: 6,
+                        bottom: 6,
+                        background: "#F0431F",
+                        color: "#fff",
+                        font: "700 9px var(--mono)",
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                      }}
+                    >
+                      LIVE 390PX DOM SNAPSHOT
+                    </span>
+                  </div>
+                )}
 
                 {limitation.limited && (
-                  <div style={{ padding: "10px 11px", borderRadius: 10, background: "#FFF0C2", border: "1px solid #FFB400", marginBottom: 10 }}>
-                    <div className="mono" style={{ fontSize: 9.5, fontWeight: 700, color: "#8A5F00" }}>{limitation.code}</div>
+                  <div style={{ padding: "10px 11px", borderRadius: 10, background: "#FFF0C2", border: "1.5px solid #FFB400", marginBottom: 10 }}>
+                    <div className="mono" style={{ fontSize: 9.5, fontWeight: 700, color: "#8A5F00" }}>UNVERIFIED · {limitation.code}</div>
                     <div style={{ fontWeight: 700, fontSize: 12, marginTop: 2 }}>{limitation.title}</div>
                     <div style={{ fontSize: 11, color: "#3B4259", marginTop: 2 }}>{limitation.evidenceSnippet || limitation.explanation}</div>
                   </div>
                 )}
 
-                {dom.ogImage && /^https?:\/\//i.test(dom.ogImage) && (
-                  <img
-                    src={dom.ogImage}
-                    alt={`${customAudit.hostname} preview`}
-                    style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 8, border: "1px solid #D8DCEA", marginBottom: 10 }}
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                  />
-                )}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <span className="mono" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", color: findingsList.length > 0 ? "#C2300F" : "#007A51" }}>
+                    {findingsList.length > 0
+                      ? `Pinpointed Mobile Bugs (${findingsList.length})`
+                      : "0 Static Mobile Defects Detected"}
+                  </span>
+                  <span className="mono" style={{ fontSize: 9.5, color: "#636A82" }}>
+                    {customAudit.activeModel || "gemini-3.5-flash-lite"}
+                  </span>
+                </div>
 
-                <div style={{ fontWeight: 800, fontSize: 15, lineHeight: 1.25, marginBottom: 4 }}>
-                  {headings[0]?.text || dom.pageTitle || customAudit.hostname}
-                </div>
-                {dom.metaDescription && (
-                  <p style={{ margin: "0 0 10px", fontSize: 11.5, color: "#3B4259", lineHeight: 1.4 }}>
-                    {dom.metaDescription}
-                  </p>
+                {/* Render EXACT issues found on the page (NEVER a list of green PASS nav links when issues exist!) */}
+                {findingsList.length > 0 ? (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {findingsList.map((f, idx) => (
+                      <div
+                        key={f.id || idx}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: "1.5px solid #F0431F",
+                          background: "#FFF5F2",
+                          display: "grid",
+                          gap: 4,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
+                          <span style={{ fontWeight: 700, fontSize: 11.5, color: "#0B1020", lineHeight: 1.3 }}>
+                            {idx + 1}. {f.title}
+                          </span>
+                          <span className="badge-pill err" style={{ fontSize: 8.5, flexShrink: 0 }}>
+                            {f.severity || "ISSUE"}
+                          </span>
+                        </div>
+                        {f.plainEnglishImpact && (
+                          <div style={{ fontSize: 10.5, color: "#3B4259", lineHeight: 1.35 }}>
+                            {f.plainEnglishImpact}
+                          </div>
+                        )}
+                        {f.markupSnippet && (
+                          <code
+                            style={{
+                              display: "block",
+                              padding: "4px 6px",
+                              borderRadius: 4,
+                              background: "#FFFFFF",
+                              border: "1px solid #F0431F",
+                              font: "500 9.5px/1.35 var(--mono)",
+                              color: "#C2300F",
+                              overflowX: "auto",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {f.markupSnippet}
+                          </code>
+                        )}
+                      </div>
+                    ))}
+                    {warnControls.map((ctrl, idx) => (
+                      <div
+                        key={`warn-${idx}`}
+                        style={{
+                          padding: "7px 9px",
+                          borderRadius: 8,
+                          border: "1.5px solid #FFB400",
+                          background: "#FFFBEB",
+                          display: "grid",
+                          gap: 3,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontWeight: 700, fontSize: 11 }}>{ctrl.label}</span>
+                          <span className="badge-pill warn" style={{ fontSize: 8.5 }}>WARN</span>
+                        </div>
+                        <div style={{ fontSize: 10.5, color: "#3B4259" }}>{ctrl.auditReason}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: 10, borderRadius: 8, background: "#D8F5E8", border: "1px solid #00A36C", fontSize: 11.5, color: "#007A51" }}>
+                    <b>Clean Static Mobile Baseline:</b> All {elements.length} static controls, images, and viewport rules passed inspection.
+                  </div>
                 )}
-
-                <div className="mono" style={{ fontSize: 9.5, textTransform: "uppercase", color: "#636A82", marginBottom: 6 }}>
-                  Observed Mobile Controls ({elements.length})
-                </div>
-                <div style={{ display: "grid", gap: 6 }}>
-                  {elements.slice(0, 6).map((el, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: "7px 9px",
-                        borderRadius: 8,
-                        border: el.auditStatus === "PASS" ? "1px solid #D8DCEA" : "1.5px solid #F0431F",
-                        background: el.auditStatus === "PASS" ? "#F6F7FB" : "#FFE5DD",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <span style={{ fontWeight: 600, fontSize: 11.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {el.accessibleName || el.label}
-                      </span>
-                      <span className={"badge-pill " + (el.auditStatus === "PASS" ? "ok" : "err")} style={{ fontSize: 9 }}>
-                        {el.auditStatus}
-                      </span>
-                    </div>
-                  ))}
-                  {elements.length === 0 && (
-                    <div className="mono" style={{ fontSize: 11, color: "#636A82" }}>No static controls rendered.</div>
-                  )}
-                </div>
               </div>
             )}
           </div>
@@ -1360,9 +1470,11 @@ function LiveMobileViewport({ customAudit }) {
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6, fontSize: 11.5, color: "var(--mute)" }}>
           <span>
-            {mobileVp.frameAllowed
+            {viewMode === "issues"
+              ? `Showing ${findingsList.length} exact pinpointed defect${findingsList.length === 1 ? "" : "s"} caught on ${customAudit.hostname}.`
+              : mobileVp.frameAllowed
               ? "Live 390px mobile frame loaded."
-              : `Live iframe blocked by target (${mobileVp.frameBlockedReason || "frame policy"}) — showing parsed mobile DOM.`}
+              : "Rendering server-fetched mobile HTML with red defect outlines."}
           </span>
           <a href={customAudit.targetUrl} target="_blank" rel="noopener noreferrer" className="mono" style={{ color: "var(--blue)", fontWeight: 700, textDecoration: "none" }}>
             Open Live Site ↗
@@ -1377,7 +1489,6 @@ function LiveMobileViewport({ customAudit }) {
 function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
   const [copiedFix, copyFix] = useCopy();
   const [copiedPrompt, copyPrompt] = useCopy();
-  const [copiedOutreach, copyOutreach] = useCopy();
   const [showTechJson, setShowTechJson] = useState(false);
   const [evidenceFilter, setEvidenceFilter] = useState("ALL");
 
@@ -1402,10 +1513,6 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
     `Fix the ${findingsList.length} mobile UX & HTML issues observed on ${customAudit.targetUrl}:\n\n${findingsList
       .map((f, i) => `${i + 1}. [${f.id}] ${f.title}\n   Observed HTML: ${f.markupSnippet || "N/A"}`)
       .join("\n")}\n\nSuggested patch:\n${rawFix}`;
-
-  const founderOutreachMessage =
-    finding.founderOutreachMessage ||
-    `Hi ${customAudit.hostname} team — ran a quick mobile & HTML check on ${customAudit.targetUrl} with Pramana AI (Verdict: ${sev}${score !== null ? `, ${score}/100` : ""}) and found ${findingsList.length} quick-win mobile UX fixes. Happy to share the copy-paste fix snippet for Cursor/Lovable!`;
 
   const filteredElements = elements.filter((el) => {
     if (evidenceFilter === "FACT") return (el.claimType || "OBSERVED_FACT") === "OBSERVED_FACT";
@@ -1754,42 +1861,6 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
                   Connect GitHub App →
                 </button>
               </p>
-            </div>
-          </div>
-
-          {/* Proof-First Founder Outreach Card (Monetization & Lead Conversion) */}
-          <div className="story">
-            <div className="story-head" style={{ cursor: "default" }}>
-              <div>
-                <span className="kicker">Proof-First Founder Outreach</span>
-                <span className="story-title">1-Click Pitch to {customAudit.hostname}</span>
-              </div>
-              <span className="badge-pill ok">Lead Studio</span>
-            </div>
-            <div className="story-body" style={{ display: "grid", gap: 10 }}>
-              <pre
-                style={{
-                  margin: 0,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  background: "var(--well)",
-                  border: "1px solid var(--rule)",
-                  font: "400 12px/1.5 var(--sans)",
-                  color: "var(--ink)",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {founderOutreachMessage}
-              </pre>
-              <button
-                type="button"
-                onClick={() => copyOutreach(founderOutreachMessage)}
-                className="btn-act green"
-                style={{ width: "100%", justifyContent: "center" }}
-              >
-                <Icon n={copiedOutreach ? "check" : "copy"} size={13} />
-                {copiedOutreach ? "Copied Founder DM / Email ✓" : "Copy Founder Outreach DM / Email"}
-              </button>
             </div>
           </div>
 
@@ -2283,15 +2354,17 @@ export default function App() {
       }
 
       if (data.isCustomUrl) {
-        const settled = resolveLiveAudit(liveAuditRef.current, reqId, data);
+        const enriched = await enrichAuditWithFirebaseGemini(data);
+        if (reqId !== liveAuditRef.current.requestId) return;
+        const settled = resolveLiveAudit(liveAuditRef.current, reqId, enriched);
         liveAuditRef.current = settled;
         setLiveAudit(settled);
         setAudit({ state: "done", step: 4, ran: true });
-        const sev = data.customFinding?.severity || "UNVERIFIED";
-        const score = data.customFinding?.domHealthScore;
+        const sev = enriched.customFinding?.severity || "UNVERIFIED";
+        const score = enriched.customFinding?.domHealthScore;
         pushHistory({
-          url: data.targetUrl || pendingState.submittedUrl,
-          host: `${data.hostname}${(() => { try { const p = new URL(data.targetUrl).pathname; return p && p !== "/" ? p : ""; } catch { return ""; } })()}`,
+          url: enriched.targetUrl || pendingState.submittedUrl,
+          host: `${enriched.hostname}${(() => { try { const p = new URL(enriched.targetUrl).pathname; return p && p !== "/" ? p : ""; } catch { return ""; } })()}`,
           mode: "LIVE",
           verdict: typeof score === "number" ? `${sev} (${score}/100)` : sev,
         });

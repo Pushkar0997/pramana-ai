@@ -553,6 +553,38 @@ export function detectAuditLimitations({
   };
 }
 
+function buildSanitizedMobilePreviewHtml(rawHtml, targetUrl) {
+  const safe = String(rawHtml || '');
+  if (!safe.trim()) return '';
+  let originBase = targetUrl;
+  try {
+    const u = new URL(targetUrl);
+    originBase = `${u.protocol}//${u.host}/`;
+  } catch {
+    // keep targetUrl
+  }
+
+  const stripped = safe
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, '')
+    .replace(/<meta[^>]+http-equiv\s*=\s*["']?x-frame-options["']?[^>]*>/gi, '')
+    .slice(0, 72000);
+
+  const highlightCss = `<base href="${originBase}"><style id="pramana-live-xray">
+    html, body { max-width: 390px !important; overflow-x: hidden !important; }
+    img:not([alt]), a[href="#"], a[href=""], a[href^="javascript:"], input:not([id]):not([aria-label]):not([placeholder]):not([type="hidden"]) {
+      outline: 3px dashed #F0431F !important;
+      outline-offset: 2px !important;
+      box-shadow: 0 0 0 4px rgba(240, 67, 31, 0.22) !important;
+    }
+  </style>`;
+
+  if (/<head\b[^>]*>/i.test(stripped)) {
+    return stripped.replace(/<head\b[^>]*>/i, (m) => `${m}${highlightCss}`);
+  }
+  return `<!doctype html><html><head>${highlightCss}</head><body>${stripped}</body></html>`;
+}
+
 export function parseLiveHtmlDocument(
   html,
   targetUrl,
@@ -788,6 +820,7 @@ export function parseLiveHtmlDocument(
     safeHtml.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
     safeHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
   const ogImage = ogImageMatch ? decodeHtmlEntities(ogImageMatch[1]).trim() : null;
+  const mobilePreviewHtml = buildSanitizedMobilePreviewHtml(safeHtml, targetUrl);
 
   return {
     httpStatus,
@@ -799,6 +832,7 @@ export function parseLiveHtmlDocument(
     pageTitle,
     metaDescription,
     ogImage,
+    mobilePreviewHtml,
     headings,
     interactiveElements,
     surfaceInfo,
@@ -898,32 +932,45 @@ async function scrapeLiveDom(targetUrl) {
 
 async function callGoogleAiStudio(modelId, apiKey, prompt) {
   const started = Date.now();
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(apiKey)}`;
-  const resp = await fetch(endpoint, {
-    method: 'POST',
-    signal: AbortSignal.timeout(6500),
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        maxOutputTokens: 380,
-        temperature: 0.1,
-        responseMimeType: 'application/json',
-      },
-    }),
-  });
-  const latencyMs = Math.max(1, Date.now() - started);
-  if (!resp.ok) {
-    return { parsed: null, usageMetadata: null, latencyMs, httpStatus: resp.status };
-  }
-  const data = await resp.json();
-  const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  const usageMetadata = data?.usageMetadata || null;
-  if (!raw) return { parsed: null, usageMetadata, latencyMs, httpStatus: resp.status };
+  const cleanKey = String(apiKey || '').trim().replace(/^["']|["']$/g, '');
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(cleanKey)}`;
+  const isGemma = modelId.startsWith('gemma-');
+  const generationConfig = {
+    maxOutputTokens: 280,
+    temperature: 0.1,
+    ...(isGemma ? {} : { responseMimeType: 'application/json' }),
+    ...(modelId === 'gemini-3.1-flash-lite' ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+  };
+
   try {
-    return { parsed: JSON.parse(raw), usageMetadata, latencyMs, httpStatus: resp.status };
-  } catch {
-    return { parsed: null, usageMetadata, latencyMs, httpStatus: resp.status };
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      signal: AbortSignal.timeout(4800),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig,
+      }),
+    });
+    const latencyMs = Math.max(1, Date.now() - started);
+    if (!resp.ok) {
+      return { parsed: null, usageMetadata: null, latencyMs, httpStatus: resp.status };
+    }
+    const data = await resp.json();
+    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const usageMetadata = data?.usageMetadata || null;
+    if (!raw) return { parsed: null, usageMetadata, latencyMs, httpStatus: resp.status };
+    const cleanedJson = String(raw).replace(/^```json\s*|\s*```$/gi, '').trim();
+    return { parsed: JSON.parse(cleanedJson), usageMetadata, latencyMs, httpStatus: resp.status };
+  } catch (err) {
+    const latencyMs = Math.max(1, Date.now() - started);
+    return {
+      parsed: null,
+      usageMetadata: null,
+      latencyMs,
+      httpStatus: 0,
+      error: err instanceof Error ? err.name : 'fetch_error',
+    };
   }
 }
 
@@ -1272,57 +1319,41 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
   const leakedMonthlyInr = null;
 
   if (apiKey && !limitation.limited) {
+    const findingsSummary = findings
+      .slice(0, 4)
+      .map((f) => `[${f.id}] ${f.title} (snippet: ${f.markupSnippet})`)
+      .join('; ');
     const prompt = [
       `You are Pramana AI auditing STATIC PUBLIC HTML of ${targetUrl} (hostname: ${hostname}).`,
       `Surface Category: ${surfaceInfo.surfaceCategory}. Has Direct Payment Flow: ${surfaceInfo.hasDirectPaymentFlow}.`,
       `Calibrated Severity: ${severity}. Static HTML Score: ${domHealthScore}/100.`,
       `Observed facts: pageTitle="${scrapedDom.pageTitle}", primaryHeading="${primaryHeading}",`,
-      `interactiveCount=${interactiveCount}, warnCount=${warnCount}, unlabeledInputsCount=${unlabeledInputsCount}, imagesMissingAlt=${imagesMissingAlt}, estimatedDomNodes=${estimatedDomNodes}.`,
-      'IMPORTANT: Do NOT invent conversion drop percentages, revenue loss, or browser layout/contrast claims. Return strict JSON with keys: anomalyTitle (string), summary (2 honest sentences grounded only in static HTML facts).',
+      `interactiveCount=${interactiveCount}, warnCount=${warnCount}, unlabeledInputsCount=${unlabeledInputsCount}, imagesMissingAlt=${imagesMissingAlt}, deadLinksCount=${deadLinksCount}, imagesMissingDimensions=${imagesMissingDimensions}, estimatedDomNodes=${estimatedDomNodes}.`,
+      `Concrete findings: ${findingsSummary || 'None (clean static HTML)'}.`,
+      'IMPORTANT: Do NOT invent conversion drop percentages, revenue loss, or browser layout/contrast claims. Return strict JSON with keys: anomalyTitle (string), summary (2 clear sentences for a non-technical startup/D2C founder citing exact observed HTML issues and how to fix them).',
     ].join(' ');
 
-    try {
-      const r1 = await callGoogleAiStudio('gemma-4-31b-it', apiKey, prompt);
+    for (const candidateModel of ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemma-4-31b-it']) {
+      const r = await callGoogleAiStudio(candidateModel, apiKey, prompt);
       providerCalls.push({
-        model: 'gemma-4-31b-it',
-        status: r1.parsed ? 'OK' : `HTTP_${r1.httpStatus || 'ERR'}`,
-        latencyMs: r1.latencyMs,
+        model: candidateModel,
+        status: r.parsed ? 'OK' : r.error || `HTTP_${r.httpStatus || 'ERR'}`,
+        latencyMs: r.latencyMs,
       });
-      if (r1.parsed) {
-        activeModel = 'gemma-4-31b-it';
-        llmResult = r1.parsed;
-        if (r1.usageMetadata) {
+      if (r.parsed) {
+        activeModel = candidateModel;
+        llmResult = r.parsed;
+        if (r.usageMetadata) {
           measuredTokenUsage = {
             available: true,
-            inputTokens: r1.usageMetadata.promptTokenCount ?? null,
-            outputTokens: r1.usageMetadata.candidatesTokenCount ?? null,
-            totalTokens: r1.usageMetadata.totalTokenCount ?? null,
-            note: 'Measured from Google AI Studio usageMetadata.',
+            inputTokens: r.usageMetadata.promptTokenCount ?? null,
+            outputTokens: r.usageMetadata.candidatesTokenCount ?? null,
+            totalTokens: r.usageMetadata.totalTokenCount ?? null,
+            note: `Measured from Google AI Studio (${candidateModel}) usageMetadata.`,
           };
         }
-      } else {
-        const r2 = await callGoogleAiStudio('gemini-3.5-flash-lite', apiKey, prompt);
-        providerCalls.push({
-          model: 'gemini-3.5-flash-lite',
-          status: r2.parsed ? 'OK' : `HTTP_${r2.httpStatus || 'ERR'}`,
-          latencyMs: r2.latencyMs,
-        });
-        if (r2.parsed) {
-          activeModel = 'gemini-3.5-flash-lite';
-          llmResult = r2.parsed;
-          if (r2.usageMetadata) {
-            measuredTokenUsage = {
-              available: true,
-              inputTokens: r2.usageMetadata.promptTokenCount ?? null,
-              outputTokens: r2.usageMetadata.candidatesTokenCount ?? null,
-              totalTokens: r2.usageMetadata.totalTokenCount ?? null,
-              note: 'Measured from Google AI Studio usageMetadata.',
-            };
-          }
-        }
+        break;
       }
-    } catch {
-      llmResult = null;
     }
   }
 
@@ -1443,7 +1474,6 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
       targetSelector,
       findings,
       aiFixPrompt: actionKit.aiFixPrompt,
-      founderOutreachMessage: actionKit.founderOutreachMessage,
       rootCauseLogs,
       diffFile: remediationEligible
         ? `suggested-fix-${primaryFinding.id.toLowerCase()}.html (No Repo Connected)`

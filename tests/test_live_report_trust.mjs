@@ -198,6 +198,7 @@ test('Startup / Vibe-Coded / Small D2C detector flags dead links, boilerplate ti
   assert.ok(ids.includes('IMAGES_MISSING_DIMENSIONS_CLS'), 'Expected IMAGES_MISSING_DIMENSIONS_CLS');
   assert.ok(synthesized.customFinding.findings.every((f) => Boolean(f.plainEnglishImpact)), 'Every finding must have plainEnglishImpact');
   assert.match(synthesized.customFinding.aiFixPrompt, /freshd2c\.in/);
-  assert.match(synthesized.customFinding.founderOutreachMessage, /Hi freshd2c\.in team/);
+  assert.equal(synthesized.customFinding.founderOutreachMessage, undefined, 'Public API must not expose internal outreach leads');
+  assert.match(parsed.mobilePreviewHtml, /pramana-live-xray/);
 });
 

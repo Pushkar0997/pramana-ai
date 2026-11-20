@@ -10,5 +10,7 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *.local
+*.local.md
+PRIVATE_FOUNDER_LEADS.local.md
 .vercel
 .firebase/
