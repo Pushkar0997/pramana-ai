@@ -1,18 +1,20 @@
 /**
  * Vercel Serverless Function: GET / POST /api/audit
- * Real Server-Side HTML/DOM Structural Scraper + Honest Surface & Severity Classifier
+ * Real Server-Side HTML/DOM Structural Scraper + Honest Surface, Shell & Evidence Classifier
  * Cascade: gemma-4-31b-it -> gemini-3.5-flash-lite -> Deterministic Site-Specific Synthesis.
  *
  * Enforces:
+ * - INV-01: $0.00 Zero-Budget Free-Tier Infrastructure
+ * - INV-03: Zero-Selector Perception (role/name identity; selectors are diagnostic text only)
  * - INV-04: Zero-Hallucination AST Target Whitelist (Connected Repo Mode only)
- * - INV-06: Unit Economics Ceiling ($0.024 / audit <= $0.025 limit)
+ * - INV-06: Unit Economics Ceiling ($0.024 amortized estimate <= $0.025 limit)
  * - INV-08: Deterministic Schema Contract
- * - P0 Honesty Guardrails:
- *   1. Accepts `url`, `target_url`, `targetUrl`, `site`, `domain` in body or query.
- *   2. Never invents conversionDropPct or leakedMonthlyUsd on non-checkout surfaces.
- *   3. Calibrates severity (PASS / LOW / MEDIUM / HIGH / CRITICAL) to real impact.
- *   4. Explicitly flags Auth Walls, 403/CAPTCHA, and Client-Only SPA shells.
- *   5. Enforces IP rate limiting and SSRF protection.
+ * - RFC-20261117 (T-305, T-307, T-309, T-310):
+ *   1. Fail closed on JS-required / unrendered SPA shells even with large nav/footer DOM.
+ *   2. Distinguish commerce product discovery, bag/cart, and direct payment surfaces.
+ *   3. Ground every finding and remediation snippet in observed static HTML evidence.
+ *   4. Separate configured credentials, provider calls, estimated cost, measured tokens, and billing verification.
+ *   5. Keep public HTML scans explicitly bounded to static HTML (never imply browser replay).
  */
 
 const UNIT_ECONOMICS_CEILING_USD = 0.025;
@@ -23,6 +25,9 @@ const VERIFIED_AST_WHITELIST = [
   'src/server/webhooks/upiConfirm.ts',
   'src/components/checkout/PlaceOrderButton.tsx',
 ];
+
+const JS_REQUIRED_REGEX =
+  /\b(please enable javascript|enable javascript to|javascript is required|javascript is disabled|turn on javascript|you need to enable javascript|requires javascript|javascript must be enabled|browser does not support javascript)\b/i;
 
 // Sliding-window in-memory rate limiter (30 requests / 60s per client IP)
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -46,7 +51,7 @@ function checkRateLimit(ip) {
   };
 }
 
-function isBlockedSsrfHost(hostname) {
+export function isBlockedSsrfHost(hostname) {
   const h = String(hostname || '').toLowerCase().trim();
   if (!h || !h.includes('.')) return true;
   if (
@@ -105,7 +110,7 @@ const BENCHMARK_FIXTURES = {
       {
         lvl: 'INFO',
         at: '00:11.390',
-        msg: 'Gemma 4 31B compressed 24,800 raw HAR/DOM tokens -> 412 tokens ($0.024 <= $0.025 INV-06)',
+        msg: 'Gemma 4 31B compressed 24,800 raw HAR/DOM tokens -> 412 tokens ($0.024 amortized <= $0.025 INV-06)',
         src: 'TraceCorrelatorSkill',
       },
     ],
@@ -253,13 +258,41 @@ function cleanVisibleText(rawHtml) {
   return decodeHtmlEntities(stripped).replace(/\s+/g, ' ').trim();
 }
 
+function extractMainContentText(rawHtml) {
+  const safe = String(rawHtml || '');
+  const mainMatch = safe.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+  if (mainMatch) {
+    return cleanVisibleText(mainMatch[1]);
+  }
+  const withoutChrome = safe
+    .replace(/<header\b[^>]*>[\s\S]*?<\/header>/gi, ' ')
+    .replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, ' ')
+    .replace(/<footer\b[^>]*>[\s\S]*?<\/footer>/gi, ' ')
+    .replace(/<aside\b[^>]*>[\s\S]*?<\/aside>/gi, ' ');
+  return cleanVisibleText(withoutChrome);
+}
+
 function extractAttr(attrs, name) {
   const re = new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'i');
   const m = String(attrs || '').match(re);
   return m ? decodeHtmlEntities(m[1]).trim() : '';
 }
 
-function classifyPageSurface(targetUrl, hostname, safeHtml, interactiveElements, formsCount, inputsCount) {
+function truncateSnippet(raw, maxLen = 140) {
+  const normalized = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLen) return normalized;
+  return `${normalized.slice(0, maxLen - 1)}…`;
+}
+
+export function classifyPageSurface(
+  targetUrl,
+  hostname,
+  safeHtml,
+  interactiveElements,
+  formsCount,
+  inputsCount,
+  headings = []
+) {
   let path = '/';
   try {
     path = new URL(targetUrl).pathname.toLowerCase();
@@ -268,26 +301,65 @@ function classifyPageSurface(targetUrl, hostname, safeHtml, interactiveElements,
   }
 
   const hostLower = String(hostname || '').toLowerCase();
-  const labelsConcat = interactiveElements.map((e) => `${e.label} ${e.id || ''} ${e.href || ''}`).join(' ').toLowerCase();
-  const hasCheckoutPath = /(checkout|cart|pay|payment|billing|subscribe|order)/i.test(path);
-  const hasPaymentInputs = /\b(cardnumber|cc-number|cvv|cvc|upi|razorpay|stripe-element|payment-form)\b/i.test(safeHtml);
-  const hasBuyButtons = /\b(pay now|place order|buy now|complete purchase|proceed to pay|checkout)\b/i.test(labelsConcat);
+  const labelsConcat = interactiveElements
+    .map((e) => `${e.label || ''} ${e.id || ''} ${e.href || ''}`)
+    .join(' ')
+    .toLowerCase();
+  const headingsConcat = headings.map((h) => h.text || '').join(' ').toLowerCase();
 
-  const hasDirectPaymentFlow = Boolean(hasCheckoutPath || hasPaymentInputs || hasBuyButtons);
+  const hasDirectCheckoutPath = /(^|\/)(checkout|pay|payment|billing|subscribe|order-confirm)(\/|$|-)/i.test(path);
+  const hasPaymentInputs = /\b(cardnumber|cc-number|cvv|cvc|upi|razorpay|stripe-element|payment-form)\b/i.test(
+    safeHtml
+  );
+  const hasPayButtons = /\b(pay now|place order|complete purchase|proceed to pay)\b/i.test(labelsConcat);
 
-  if (hasDirectPaymentFlow) {
+  if (hasDirectCheckoutPath || hasPaymentInputs || hasPayButtons) {
     return {
+      surfaceType: 'DIRECT_PAYMENT_CHECKOUT',
       hasDirectPaymentFlow: true,
+      isCommerceSurface: true,
       revenueMetricApplicable: false,
-      surfaceCategory: 'Transactional Checkout / Billing Route (Public HTML)',
+      surfaceCategory: 'Direct Payment / Checkout Surface (Public HTML)',
       monetizationModel: 'Direct Checkout Controls Detected (Unauthenticated)',
-      paymentContextNote: `Transactional checkout/billing controls detected on ${targetUrl}. Because Pramana is running in unauthenticated Public HTML Scrape mode without merchant analytics access, $ revenue and conversion drop are not fabricated—reporting DOM & CTA readiness only.`,
+      paymentContextNote: `Direct checkout or payment controls detected on ${targetUrl}. Because Pramana is running in unauthenticated Static HTML mode without merchant analytics, revenue and conversion-drop numbers remain N/A.`,
+    };
+  }
+
+  const hasBagPath = /(^|\/)(shop\/bag|bag|cart|basket|shopping-bag|shopping-cart)(\/|$)/i.test(path);
+  const hasBagSignals = /\b(your bag|shopping bag|shopping cart|review bag|proceed to checkout|checkout bag)\b/i.test(
+    `${headingsConcat} ${labelsConcat}`
+  );
+  if (hasBagPath || hasBagSignals) {
+    return {
+      surfaceType: 'COMMERCE_BAG_CART',
+      hasDirectPaymentFlow: false,
+      isCommerceSurface: true,
+      revenueMetricApplicable: false,
+      surfaceCategory: 'Commerce Bag / Cart Surface (Public HTML)',
+      monetizationModel: 'Pre-Payment Cart / Bag Review Route',
+      paymentContextNote: `Bag/cart commerce route detected at ${hostname}${path} (payment inputs absent or client-rendered). Static HTML mode does not execute cart interactions or fabricate conversion/revenue figures.`,
+    };
+  }
+
+  const hasProductPath = /(^|\/)(shop\/buy|buy-|product|products|item|pdp|dp\/|store\/)/i.test(path);
+  const hasProductCta = /\b(add to bag|add to cart|buy now|select finish|choose your)\b/i.test(labelsConcat);
+  if (hasProductPath || hasProductCta) {
+    return {
+      surfaceType: 'COMMERCE_PRODUCT_DISCOVERY',
+      hasDirectPaymentFlow: false,
+      isCommerceSurface: true,
+      revenueMetricApplicable: false,
+      surfaceCategory: 'Commerce Product Discovery Surface (Public HTML)',
+      monetizationModel: 'Product Configuration & Add-to-Bag Funnel',
+      paymentContextNote: `Commerce product discovery route detected at ${hostname}${path}. Static HTML inspection checks markup & accessibility only; checkout execution and revenue impact require connected browser + merchant telemetry.`,
     };
   }
 
   if (hostLower.includes('example.com') || hostLower.includes('example.org')) {
     return {
+      surfaceType: 'STATIC_REFERENCE',
       hasDirectPaymentFlow: false,
+      isCommerceSurface: false,
       revenueMetricApplicable: false,
       surfaceCategory: 'Static Reference / Documentation Page',
       monetizationModel: 'None (IANA Reserved Example Domain)',
@@ -297,50 +369,69 @@ function classifyPageSurface(targetUrl, hostname, safeHtml, interactiveElements,
 
   if (hostLower.includes('google.') && !hostLower.includes('ads.google') && !hostLower.includes('pay.google')) {
     return {
+      surfaceType: 'SEARCH_DISCOVERY',
       hasDirectPaymentFlow: false,
+      isCommerceSurface: false,
       revenueMetricApplicable: false,
       surfaceCategory: 'Search & Discovery Entry Surface',
       monetizationModel: 'Downstream Ad Centre / Google One / Cloud Billing',
-      paymentContextNote: `No direct payment or checkout gate exists on ${hostname}${path} (search interface). Revenue/conversion-drop metrics are not applicable here; billing only occurs downstream in Google Ads Centre, Google One, or Cloud Billing.`,
+      paymentContextNote: `No direct payment or checkout gate exists on ${hostname}${path} (search interface). Revenue/conversion-drop metrics are not applicable here; billing occurs downstream.`,
     };
   }
 
   if (hostLower.includes('github.')) {
     return {
+      surfaceType: 'DEVELOPER_PLATFORM',
       hasDirectPaymentFlow: false,
+      isCommerceSurface: false,
       revenueMetricApplicable: false,
       surfaceCategory: 'Developer Platform & Repository Surface',
       monetizationModel: 'Downstream Settings → Billing / Copilot / Marketplace',
-      paymentContextNote: `No checkout cart or payment form exists on ${hostname}${path}. Revenue/conversion-drop metrics are not applicable on public repository/landing routes (billing requires authentication at /settings/billing).`,
+      paymentContextNote: `No checkout cart or payment form exists on ${hostname}${path}. Revenue/conversion-drop metrics are not applicable on public repository/landing routes.`,
     };
   }
 
   if (/(wikipedia\.org|archive\.org|docs\.|developer\.|\.edu|\.ac\.in)/i.test(hostLower)) {
     return {
+      surfaceType: 'KNOWLEDGE_BASE',
       hasDirectPaymentFlow: false,
+      isCommerceSurface: false,
       revenueMetricApplicable: false,
       surfaceCategory: 'Knowledge Base / Academic & Documentation Portal',
       monetizationModel: 'Non-Transactional Information Surface',
-      paymentContextNote: `No e-commerce checkout funnel exists on ${hostname}${path} (${formsCount} forms, ${inputsCount} inputs scanned). Revenue metrics are not applicable; reporting accessibility & mobile DOM usability only.`,
+      paymentContextNote: `No e-commerce checkout funnel exists on ${hostname}${path} (${formsCount} forms, ${inputsCount} inputs scanned). Revenue metrics are not applicable; reporting static HTML accessibility only.`,
     };
   }
 
   return {
+    surfaceType: 'PUBLIC_LANDING',
     hasDirectPaymentFlow: false,
+    isCommerceSurface: false,
     revenueMetricApplicable: false,
     surfaceCategory: 'Public Landing & Navigation Surface',
     monetizationModel: 'No Direct Checkout on Entry URL',
-    paymentContextNote: `No direct payment form or checkout gate is present on ${hostname}${path} (${formsCount} forms, ${inputsCount} inputs inspected). Revenue/conversion-drop metrics are not applicable; reporting DOM & accessibility readiness only.`,
+    paymentContextNote: `No direct payment form or checkout gate is present on ${hostname}${path} (${formsCount} forms, ${inputsCount} inputs inspected). Revenue/conversion-drop metrics are not applicable; reporting static HTML accessibility only.`,
   };
 }
 
-function detectAuditLimitations(httpStatus, safeHtml, estimatedDomNodes, totalScripts, visibleTextLen, fetchError) {
+export function detectAuditLimitations({
+  httpStatus,
+  safeHtml,
+  estimatedDomNodes,
+  totalScripts,
+  visibleTextLen,
+  mainContentText,
+  headings = [],
+  surfaceInfo = null,
+  fetchError = null,
+}) {
   if (fetchError || httpStatus === 0) {
     return {
       limited: true,
       code: 'UNREACHABLE_OR_TIMEOUT',
       title: 'Target Unreachable or Timed Out',
-      explanation: `Server-side HTTP fetch to target failed (${fetchError || 'network timeout'}). Returning baseline structural profile; live DOM could not be verified.`,
+      explanation: `Server-side HTTP fetch to target failed (${fetchError || 'network timeout'}). Live HTML could not be retrieved; verdict is UNVERIFIED.`,
+      signals: [`fetch_error:${fetchError || 'timeout'}`],
     };
   }
   if (httpStatus === 401 || httpStatus === 403) {
@@ -348,7 +439,8 @@ function detectAuditLimitations(httpStatus, safeHtml, estimatedDomNodes, totalSc
       limited: true,
       code: 'AUTH_OR_BOT_WALL',
       title: `Blocked by Authentication or Bot Wall (HTTP ${httpStatus})`,
-      explanation: `Target returned HTTP ${httpStatus}. Unauthenticated server-side HTML fetch cannot bypass login walls, Cloudflare challenges, or WAF rules without an authenticated Playwright session.`,
+      explanation: `Target returned HTTP ${httpStatus}. Unauthenticated server-side HTML fetch cannot inspect behind login walls, Cloudflare challenges, or WAF rules.`,
+      signals: [`http_status:${httpStatus}`],
     };
   }
   if (httpStatus === 429 || httpStatus >= 500) {
@@ -356,34 +448,120 @@ function detectAuditLimitations(httpStatus, safeHtml, estimatedDomNodes, totalSc
       limited: true,
       code: 'UPSTREAM_HTTP_ERROR',
       title: `Upstream Server Returned HTTP ${httpStatus}`,
-      explanation: `Target responded with HTTP ${httpStatus}. Full DOM inspection requires a healthy 200 OK upstream response.`,
+      explanation: `Target responded with HTTP ${httpStatus}. Static HTML inspection requires a healthy 200 OK upstream response.`,
+      signals: [`http_status:${httpStatus}`],
     };
   }
-  if (/\b(cf-browser-verification|cf-chl-bypass|Just a moment\.\.\.|Attention Required! \| Cloudflare|g-recaptcha|hcaptcha)\b/i.test(safeHtml) && visibleTextLen < 600) {
+  if (
+    /\b(cf-browser-verification|cf-chl-bypass|Just a moment\.\.\.|Attention Required! \| Cloudflare|g-recaptcha|hcaptcha)\b/i.test(
+      safeHtml
+    ) &&
+    visibleTextLen < 900
+  ) {
     return {
       limited: true,
       code: 'CAPTCHA_CHALLENGE',
       title: 'Bot Protection / CAPTCHA Interstitial Detected',
-      explanation: 'Target served a bot-challenge interstitial instead of the application DOM. Connect Pramana with an authenticated staging token to audit behind bot protection.',
+      explanation:
+        'Target served a bot-challenge interstitial instead of the application DOM. Verdict is UNVERIFIED without an authorized browser session.',
+      signals: ['bot_challenge_interstitial'],
     };
   }
-  if (estimatedDomNodes < 25 && totalScripts >= 3 && visibleTextLen < 120) {
+
+  // T-305: Fail-closed JS shell detection even when nav/footer creates hundreds of static DOM nodes
+  const signals = [];
+  const jsHeading = headings.find((h) => JS_REQUIRED_REGEX.test(h.text || ''));
+  if (jsHeading) {
+    signals.push(`js_required_heading:"${jsHeading.text}"`);
+  }
+
+  const noscriptMatches = safeHtml.match(/<noscript\b[^>]*>([\s\S]*?)<\/noscript>/gi) || [];
+  const noscriptJsWarning = noscriptMatches.find((block) => JS_REQUIRED_REGEX.test(cleanVisibleText(block)));
+  if (noscriptJsWarning) {
+    signals.push('noscript_js_required_warning');
+  }
+
+  const mainText = String(mainContentText || '');
+  const mainJsWarning = JS_REQUIRED_REGEX.test(mainText);
+  if (mainJsWarning) {
+    signals.push('main_content_js_required_message');
+  }
+
+  const hasAppRootMount = /<div\b[^>]+id=["'](?:root|app|__next|__nuxt|bag-root|checkout-root)["'][^>]*>\s*<\/div>/i.test(
+    safeHtml
+  );
+  if (hasAppRootMount) {
+    signals.push('empty_spa_root_container');
+  }
+
+  const navChromeDominant =
+    estimatedDomNodes >= 100 && totalScripts >= 15 && mainText.length < 240;
+  if (navChromeDominant) {
+    signals.push(`nav_chrome_dominant(nodes=${estimatedDomNodes},scripts=${totalScripts},mainChars=${mainText.length})`);
+  }
+
+  const classicMinimalShell = estimatedDomNodes < 25 && totalScripts >= 3 && visibleTextLen < 120;
+  if (classicMinimalShell) {
+    signals.push(`minimal_ssr_markup(nodes=${estimatedDomNodes},scripts=${totalScripts})`);
+  }
+
+  const commerceBagWithoutContent =
+    surfaceInfo?.surfaceType === 'COMMERCE_BAG_CART' &&
+    totalScripts >= 10 &&
+    mainText.length < 220 &&
+    (Boolean(jsHeading) || mainJsWarning || Boolean(noscriptJsWarning) || hasAppRootMount);
+  if (commerceBagWithoutContent) {
+    signals.push('commerce_bag_unrendered_in_static_html');
+  }
+
+  const isUnrenderedShell =
+    Boolean(jsHeading) ||
+    classicMinimalShell ||
+    commerceBagWithoutContent ||
+    (mainJsWarning && mainText.length < 600) ||
+    (Boolean(noscriptJsWarning) && (navChromeDominant || hasAppRootMount || mainText.length < 260)) ||
+    (hasAppRootMount && totalScripts >= 6 && mainText.length < 200);
+
+  if (isUnrenderedShell) {
+    const primaryReason = jsHeading
+      ? `Heading reported "${jsHeading.text}"`
+      : mainJsWarning
+      ? 'Main document body requested JavaScript execution'
+      : `Only ${mainText.length} chars of non-navigation main content were present across ${estimatedDomNodes} static nodes and ${totalScripts} scripts`;
+
     return {
       limited: true,
       code: 'CLIENT_SPA_SHELL',
-      title: 'Client-Rendered SPA Shell (SSR Markup Minimal)',
-      explanation: `Fetched HTML contains only ${estimatedDomNodes} static nodes and ${totalScripts} script bundles. Because /api/audit performs a fast server-side HTML parse without JS execution, post-hydration client state is not visible in this mode.`,
+      title: 'JavaScript-Required / Unrendered Page Shell',
+      explanation: `${primaryReason}. Because /api/audit inspects static HTML without executing client JavaScript, the rendered page content was not verified. Clean-pass scoring and generic navigation fixes are suppressed (fail-closed).`,
+      signals,
+      evidenceSnippet: jsHeading
+        ? `<${jsHeading.tag}>${jsHeading.text}</${jsHeading.tag}>`
+        : noscriptJsWarning
+        ? truncateSnippet(noscriptJsWarning, 140)
+        : `<script> count: ${totalScripts}, main text: ${mainText.length} chars`,
     };
   }
+
   return {
     limited: false,
     code: 'NONE',
-    title: 'Public HTML/DOM Parsed Successfully',
-    explanation: 'Server-side HTML parser inspected static markup, forms, ARIA attributes, and image alt tags. (Note: CSS layout overlap and JS network waterfalls require Connected Playwright Sandbox mode.)',
+    title: 'Static HTML Parsed Successfully',
+    explanation:
+      'Server-side HTML parser inspected static markup, forms, ARIA attributes, and image alt tags. Hydrated JS state, computed contrast, layout overlap, and payment clicks were NOT executed in Static HTML mode.',
+    signals: [],
   };
 }
 
-function parseLiveHtmlDocument(html, targetUrl, httpStatus, contentType, serverHeader, fetchLatencyMs, fetchError = null) {
+export function parseLiveHtmlDocument(
+  html,
+  targetUrl,
+  httpStatus,
+  contentType,
+  serverHeader,
+  fetchLatencyMs,
+  fetchError = null
+) {
   const safeHtml = String(html || '');
   let hostname = targetUrl;
   try {
@@ -396,6 +574,7 @@ function parseLiveHtmlDocument(html, targetUrl, httpStatus, contentType, serverH
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ');
   const visibleText = cleanVisibleText(bodyWithoutScripts);
+  const mainContentText = extractMainContentText(safeHtml);
 
   const titleMatch = safeHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   const pageTitle = titleMatch ? cleanVisibleText(titleMatch[1]).slice(0, 140) : hostname;
@@ -407,9 +586,10 @@ function parseLiveHtmlDocument(html, targetUrl, httpStatus, contentType, serverH
   const metaDescription = metaDescMatch ? decodeHtmlEntities(metaDescMatch[1]).trim().slice(0, 220) : '';
 
   const viewportMatch =
-    safeHtml.match(/<meta[^>]+name=["']viewport["'][^>]+content=["']([^"']+)["']/i) ||
-    safeHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']viewport["']/i);
+    safeHtml.match(/<meta[^>]+name=["']viewport["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
+    safeHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']viewport["'][^>]*>/i);
   const viewportMeta = viewportMatch ? viewportMatch[1].trim() : 'width=device-width, initial-scale=1';
+  const viewportTagSnippet = viewportMatch ? truncateSnippet(viewportMatch[0], 130) : null;
   const zoomBlocked = /user-scalable\s*=\s*no|maximum-scale\s*=\s*1(\.0)?\b/i.test(viewportMeta);
 
   const headings = [];
@@ -425,46 +605,64 @@ function parseLiveHtmlDocument(html, targetUrl, httpStatus, contentType, serverH
   const interactiveElements = [];
   const interRe = /<(button|a)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
   while ((m = interRe.exec(bodyWithoutScripts)) !== null && interactiveElements.length < 10) {
+    const rawMatch = m[0];
     const tag = m[1].toLowerCase();
     const attrs = m[2] || '';
     const innerText = cleanVisibleText(m[3]);
     const ariaLabel = extractAttr(attrs, 'aria-label') || extractAttr(attrs, 'title');
+    const explicitRole = extractAttr(attrs, 'role');
     const id = extractAttr(attrs, 'id');
     const rawClass = extractAttr(attrs, 'class');
     const className = rawClass.split(/\s+/).filter(Boolean).slice(0, 2).join('.');
     const href = tag === 'a' ? extractAttr(attrs, 'href') : '';
     const label = (innerText || ariaLabel || '').slice(0, 60);
 
-    if (!label) continue;
+    if (!label && tag === 'a' && !href) continue;
     const isCtaLink =
       tag === 'a' &&
       (Boolean(id) ||
-        /(btn|button|cta|sign|log|start|try|buy|checkout|pricing|doc|repo|search|get|store|gmail|images|ads|more)/i.test(
+        /(btn|button|cta|sign|log|start|try|buy|checkout|bag|cart|pricing|doc|repo|search|get|store|gmail|images|ads|more)/i.test(
           `${rawClass} ${label} ${href}`
         ) ||
         interactiveElements.length < 6);
 
     if (tag === 'button' || isCtaLink) {
       const hasAriaLabel = Boolean(ariaLabel);
+      const role = explicitRole || (tag === 'a' ? 'link' : 'button');
       let auditStatus = 'PASS';
-      let auditReason = 'Accessible text label & link/button semantics verified';
+      let claimType = 'OBSERVED_FACT';
+      let auditReason = 'Accessible text label & semantic role observed in static HTML';
 
-      if (tag === 'button' && !id && !hasAriaLabel && label.length > 34) {
+      if (!innerText && !hasAriaLabel) {
         auditStatus = 'WARN';
-        auditReason = `Long button label (${label.length} chars) without explicit id attribute`;
-      } else if (!innerText && !hasAriaLabel) {
+        claimType = 'OBSERVED_FACT';
+        auditReason = `Observed <${tag}> with empty text content and no aria-label/title attribute`;
+      } else if (tag === 'button' && !id && !hasAriaLabel && label.length > 34) {
         auditStatus = 'WARN';
-        auditReason = 'Icon/empty control missing accessible text or aria-label';
+        claimType = 'INFERENCE';
+        auditReason = `Long button text (${label.length} chars) without explicit aria-label or stable id`;
       }
+
+      const diagnosticSelector = id
+        ? `#${id}`
+        : className
+        ? `${tag}.${className.split('.')[0]}`
+        : `<${tag}>`;
 
       interactiveElements.push({
         tag,
-        label,
+        role,
+        accessibleName: label || null,
+        label: label || '(unlabeled control)',
         id: id || null,
         className: className || null,
+        diagnosticSelector,
         href: href || null,
         hasAriaLabel: hasAriaLabel || Boolean(innerText),
         auditStatus,
+        claimType,
+        evidenceSource: 'STATIC_HTML',
+        markupSnippet: truncateSnippet(rawMatch, 135),
         auditReason,
       });
     }
@@ -472,29 +670,46 @@ function parseLiveHtmlDocument(html, targetUrl, httpStatus, contentType, serverH
 
   const inputControlRe = /<(input|textarea)\b([^>]*)>/gi;
   while ((m = inputControlRe.exec(bodyWithoutScripts)) !== null && interactiveElements.length < 12) {
+    const rawMatch = m[0];
     const tag = m[1].toLowerCase();
     const attrs = m[2] || '';
     const type = (extractAttr(attrs, 'type') || (tag === 'textarea' ? 'search-textarea' : 'text')).toLowerCase();
     if (type === 'hidden') continue;
     const nameAttr = extractAttr(attrs, 'name');
     const valueAttr = extractAttr(attrs, 'value');
-    const ariaLabel = extractAttr(attrs, 'aria-label') || extractAttr(attrs, 'title') || extractAttr(attrs, 'placeholder');
+    const ariaLabel =
+      extractAttr(attrs, 'aria-label') || extractAttr(attrs, 'title') || extractAttr(attrs, 'placeholder');
     const id = extractAttr(attrs, 'id');
     const rawClass = extractAttr(attrs, 'class');
-    const label = (valueAttr || ariaLabel || (nameAttr ? `${tag}[name="${nameAttr}"]` : `${tag}[type="${type}"]`)).slice(0, 60);
+    const label = (valueAttr || ariaLabel || (nameAttr ? `${tag}[name="${nameAttr}"]` : `${tag}[type="${type}"]`)).slice(
+      0,
+      60
+    );
     const hasAccessibleLabel = Boolean(ariaLabel || valueAttr || id);
+    const role = type === 'submit' || type === 'button' ? 'button' : 'textbox';
+    const diagnosticSelector = id
+      ? `#${id}`
+      : nameAttr
+      ? `${tag}[name="${nameAttr}"]`
+      : `${tag}[type="${type}"]`;
 
     interactiveElements.push({
       tag,
+      role,
+      accessibleName: hasAccessibleLabel ? label : null,
       label,
       id: id || (nameAttr ? `name=${nameAttr}` : null),
       className: rawClass.split(/\s+/).filter(Boolean).slice(0, 2).join('.') || null,
+      diagnosticSelector,
       href: null,
       hasAriaLabel: hasAccessibleLabel,
       auditStatus: hasAccessibleLabel ? 'PASS' : 'WARN',
+      claimType: 'OBSERVED_FACT',
+      evidenceSource: 'STATIC_HTML',
+      markupSnippet: truncateSnippet(rawMatch, 135),
       auditReason: hasAccessibleLabel
-        ? `Interactive ${tag} (${type}) accessible label verified`
-        : `Input (${type}) lacks explicit id, title, placeholder, or aria-label attribute`,
+        ? `Interactive ${tag} (${type}) accessible label observed in static HTML`
+        : `Observed <${tag} type="${type}"> without id, aria-label, title, or placeholder`,
     });
   }
 
@@ -506,21 +721,23 @@ function parseLiveHtmlDocument(html, targetUrl, httpStatus, contentType, serverH
   const inputMatches = bodyWithoutScripts.match(/<(?:input|textarea|select)\b[^>]*>/gi) || [];
   const visibleInputs = inputMatches.filter((inp) => !/\btype\s*=\s*["']hidden["']/i.test(inp));
   const inputsCount = visibleInputs.length;
-  let unlabeledInputsCount = 0;
+  const unlabeledInputSnippets = [];
   for (const inp of visibleInputs) {
     if (!/\b(id|aria-label|aria-labelledby|title|placeholder|value)\s*=\s*["'][^"']+["']/i.test(inp)) {
-      unlabeledInputsCount += 1;
+      unlabeledInputSnippets.push(truncateSnippet(inp, 135));
     }
   }
+  const unlabeledInputsCount = unlabeledInputSnippets.length;
 
   const imgMatches = bodyWithoutScripts.match(/<img\b[^>]*>/gi) || [];
   const totalImages = imgMatches.length;
-  let imagesMissingAlt = 0;
+  const missingAltImageSnippets = [];
   for (const imgTag of imgMatches) {
     if (!/\balt\s*=/i.test(imgTag)) {
-      imagesMissingAlt += 1;
+      missingAltImageSnippets.push(truncateSnippet(imgTag, 135));
     }
   }
+  const imagesMissingAlt = missingAltImageSnippets.length;
 
   const totalScripts = (safeHtml.match(/<script\b/gi) || []).length;
   const inlineStylesCount = (safeHtml.match(/\bstyle\s*=\s*["']/gi) || []).length;
@@ -533,17 +750,21 @@ function parseLiveHtmlDocument(html, targetUrl, httpStatus, contentType, serverH
     safeHtml,
     interactiveElements,
     formsCount,
-    inputsCount
+    inputsCount,
+    headings
   );
 
-  const auditLimitation = detectAuditLimitations(
+  const auditLimitation = detectAuditLimitations({
     httpStatus,
     safeHtml,
     estimatedDomNodes,
     totalScripts,
-    visibleText.length,
-    fetchError
-  );
+    visibleTextLen: visibleText.length,
+    mainContentText,
+    headings,
+    surfaceInfo,
+    fetchError,
+  });
 
   return {
     httpStatus,
@@ -558,18 +779,22 @@ function parseLiveHtmlDocument(html, targetUrl, httpStatus, contentType, serverH
     interactiveElements,
     surfaceInfo,
     auditLimitation,
+    mainContentChars: mainContentText.length,
     formsAndInputs: {
       formsCount,
       inputsCount,
       unlabeledInputsCount,
+      unlabeledInputSnippets: unlabeledInputSnippets.slice(0, 5),
     },
     accessibilityMetrics: {
       totalImages,
       imagesMissingAlt,
+      missingAltImageSnippets: missingAltImageSnippets.slice(0, 5),
       totalScripts,
       inlineStylesCount,
       estimatedDomNodes,
       viewportMeta,
+      viewportTagSnippet,
       zoomBlocked,
     },
   };
@@ -606,6 +831,7 @@ async function scrapeLiveDom(targetUrl) {
 }
 
 async function callGoogleAiStudio(modelId, apiKey, prompt) {
+  const started = Date.now();
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const resp = await fetch(endpoint, {
     method: 'POST',
@@ -620,56 +846,180 @@ async function callGoogleAiStudio(modelId, apiKey, prompt) {
       },
     }),
   });
-  if (!resp.ok) return null;
+  const latencyMs = Math.max(1, Date.now() - started);
+  if (!resp.ok) {
+    return { parsed: null, usageMetadata: null, latencyMs, httpStatus: resp.status };
+  }
   const data = await resp.json();
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!raw) return null;
+  const usageMetadata = data?.usageMetadata || null;
+  if (!raw) return { parsed: null, usageMetadata, latencyMs, httpStatus: resp.status };
   try {
-    return JSON.parse(raw);
+    return { parsed: JSON.parse(raw), usageMetadata, latencyMs, httpStatus: resp.status };
   } catch {
-    return null;
+    return { parsed: null, usageMetadata, latencyMs, httpStatus: resp.status };
   }
 }
 
-async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  let activeModel = 'gemma-4-31b-it';
-  let llmResult = null;
+function buildEvidenceFindings(scrapedDom, hostname) {
+  const findings = [];
+  const limitation = scrapedDom.auditLimitation || { limited: false, code: 'NONE' };
+  const { imagesMissingAlt, missingAltImageSnippets = [], zoomBlocked, viewportTagSnippet } =
+    scrapedDom.accessibilityMetrics;
+  const { unlabeledInputsCount, unlabeledInputSnippets = [] } = scrapedDom.formsAndInputs;
 
-  const primaryEl = scrapedDom.interactiveElements[0] || {
-    tag: 'a',
-    label: scrapedDom.pageTitle || hostname,
-    id: null,
-    className: null,
-    auditStatus: 'PASS',
-    auditReason: 'Baseline markup verified',
+  if (limitation.limited) {
+    findings.push({
+      id: `LIMITATION_${limitation.code}`,
+      title: limitation.title,
+      severity: 'UNVERIFIED',
+      claimType: 'OBSERVED_FACT',
+      evidenceSource: 'STATIC_HTML',
+      role: 'document',
+      accessibleName: scrapedDom.pageTitle || hostname,
+      diagnosticSelector: 'document',
+      markupSnippet: limitation.evidenceSnippet || `HTTP ${scrapedDom.httpStatus} · ${limitation.code}`,
+      confidence: 0.99,
+      limitationNote: limitation.explanation,
+      remediationEligible: false,
+      remediationSnippet: null,
+    });
+    return findings;
+  }
+
+  if (zoomBlocked) {
+    findings.push({
+      id: 'VIEWPORT_ZOOM_BLOCKED',
+      title: 'Viewport meta tag restricts pinch-to-zoom',
+      severity: 'HIGH',
+      claimType: 'OBSERVED_FACT',
+      evidenceSource: 'STATIC_HTML',
+      role: 'document',
+      accessibleName: 'viewport meta',
+      diagnosticSelector: 'meta[name="viewport"]',
+      markupSnippet: viewportTagSnippet || `<meta name="viewport" content="${scrapedDom.accessibilityMetrics.viewportMeta}">`,
+      confidence: 0.99,
+      limitationNote: 'Observed directly in static <meta name="viewport"> attribute (WCAG 1.4.4).',
+      remediationEligible: true,
+      remediationSnippet: {
+        del: viewportTagSnippet || `<meta name="viewport" content="${scrapedDom.accessibilityMetrics.viewportMeta}">`,
+        add: '<meta name="viewport" content="width=device-width, initial-scale=1">',
+      },
+    });
+  }
+
+  if (unlabeledInputsCount > 0) {
+    const sample = unlabeledInputSnippets[0] || '<input type="text">';
+    findings.push({
+      id: 'UNLABELED_FORM_INPUTS',
+      title: `${unlabeledInputsCount} visible form input${unlabeledInputsCount === 1 ? '' : 's'} missing accessible label attributes`,
+      severity: unlabeledInputsCount >= 2 ? 'MEDIUM' : 'LOW',
+      claimType: 'OBSERVED_FACT',
+      evidenceSource: 'STATIC_HTML',
+      role: 'textbox',
+      accessibleName: null,
+      diagnosticSelector: 'input (missing id/aria-label/placeholder)',
+      markupSnippet: sample,
+      confidence: 0.97,
+      limitationNote:
+        'Observed directly in static HTML. External <label> association or JS-injected ARIA attributes cannot be confirmed without a browser runtime.',
+      remediationEligible: true,
+      remediationSnippet: {
+        del: sample,
+        add: sample.replace(/<input\b/i, '<input id="accessible-field" aria-label="Descriptive field label"'),
+      },
+    });
+  }
+
+  if (imagesMissingAlt > 0) {
+    const sampleImg = missingAltImageSnippets[0] || '<img src="...">';
+    findings.push({
+      id: 'IMAGES_MISSING_ALT',
+      title: `${imagesMissingAlt} image${imagesMissingAlt === 1 ? '' : 's'} missing alt attribute`,
+      severity: imagesMissingAlt >= 2 ? 'MEDIUM' : 'LOW',
+      claimType: 'OBSERVED_FACT',
+      evidenceSource: 'STATIC_HTML',
+      role: 'img',
+      accessibleName: null,
+      diagnosticSelector: 'img:not([alt])',
+      markupSnippet: sampleImg,
+      confidence: 0.99,
+      limitationNote: 'Observed directly in static <img> markup (WCAG 1.1.1 Non-text Content).',
+      remediationEligible: true,
+      remediationSnippet: {
+        del: sampleImg,
+        add: sampleImg.replace(/<img\b/i, '<img alt="Descriptive image text"'),
+      },
+    });
+  }
+
+  const warnControls = scrapedDom.interactiveElements.filter((el) => el.auditStatus !== 'PASS');
+  for (let i = 0; i < Math.min(2, warnControls.length); i += 1) {
+    const ctrl = warnControls[i];
+    const safeId = (ctrl.label || 'control')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 28) || 'interactive-control';
+    findings.push({
+      id: `CONTROL_A11Y_${i + 1}`,
+      title: ctrl.auditReason,
+      severity: 'LOW',
+      claimType: ctrl.claimType || 'OBSERVED_FACT',
+      evidenceSource: 'STATIC_HTML',
+      role: ctrl.role || ctrl.tag,
+      accessibleName: ctrl.accessibleName,
+      diagnosticSelector: ctrl.diagnosticSelector || `<${ctrl.tag}>`,
+      markupSnippet: ctrl.markupSnippet || `<${ctrl.tag}>${ctrl.label}</${ctrl.tag}>`,
+      confidence: ctrl.claimType === 'OBSERVED_FACT' ? 0.96 : 0.78,
+      limitationNote: 'Static HTML inspection only; runtime focus order and computed contrast were not measured.',
+      remediationEligible: true,
+      remediationSnippet: {
+        del: ctrl.markupSnippet || `<${ctrl.tag}>${ctrl.label}</${ctrl.tag}>`,
+        add: `<${ctrl.tag} id="${safeId}" aria-label="${ctrl.label}">${ctrl.label}</${ctrl.tag}>`,
+      },
+    });
+  }
+
+  return findings;
+}
+
+export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom, options = {}) {
+  const apiKey = options.skipLlm ? null : process.env.GEMINI_API_KEY;
+  let activeModel = 'deterministic-static-html-parser';
+  let llmResult = null;
+  const providerCalls = [];
+  let measuredTokenUsage = {
+    available: false,
+    inputTokens: null,
+    outputTokens: null,
+    totalTokens: null,
+    note: 'No external LLM call executed for this audit.',
   };
+
   const primaryHeading = scrapedDom.headings[0]?.text || scrapedDom.pageTitle;
-  const { imagesMissingAlt, estimatedDomNodes, totalScripts, zoomBlocked, inlineStylesCount, totalImages } =
+  const { imagesMissingAlt, estimatedDomNodes, totalScripts, zoomBlocked, totalImages } =
     scrapedDom.accessibilityMetrics;
   const { formsCount, inputsCount, unlabeledInputsCount } = scrapedDom.formsAndInputs;
   const surfaceInfo = scrapedDom.surfaceInfo;
   const limitation = scrapedDom.auditLimitation || { limited: false, code: 'NONE' };
 
-  const computedSelector = primaryEl.id
-    ? primaryEl.id.startsWith('name=')
-      ? `${primaryEl.tag}[${primaryEl.id}]`
-      : `#${primaryEl.id}`
-    : primaryEl.className
-    ? `${primaryEl.tag}.${primaryEl.className.split('.')[0]}`
-    : `<${primaryEl.tag}>`;
-
   const interactiveCount = scrapedDom.interactiveElements.length;
   const warnCount = scrapedDom.interactiveElements.filter((el) => el.auditStatus !== 'PASS').length;
-  const totalFlags = warnCount + imagesMissingAlt + unlabeledInputsCount + (zoomBlocked ? 1 : 0);
+  const totalFlags = limitation.limited
+    ? 0
+    : warnCount + imagesMissingAlt + unlabeledInputsCount + (zoomBlocked ? 1 : 0);
 
-  const penalty =
-    warnCount * 3 +
-    imagesMissingAlt * 2.5 +
-    unlabeledInputsCount * 4 +
-    (zoomBlocked ? 8 : 0) +
-    (limitation.limited ? 15 : 0);
-  const domHealthScore = Math.max(40, Math.min(99, Math.round(99 - penalty)));
+  // T-305: Suppress numeric readiness score whenever limitation.limited is true!
+  let domHealthScore = null;
+  if (!limitation.limited) {
+    const penalty =
+      warnCount * 3 +
+      imagesMissingAlt * 2.5 +
+      unlabeledInputsCount * 4 +
+      (zoomBlocked ? 8 : 0);
+    domHealthScore = Math.max(40, Math.min(99, Math.round(99 - penalty)));
+  }
 
   let severity = 'PASS';
   if (limitation.limited) {
@@ -686,6 +1036,10 @@ async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom) {
     severity = 'PASS';
   }
 
+  const findings = buildEvidenceFindings(scrapedDom, hostname);
+  const primaryFinding = findings.find((f) => f.remediationEligible) || null;
+  const remediationEligible = Boolean(!limitation.limited && primaryFinding);
+
   const conversionDropPct = null;
   const dropNumber = null;
   const leakedMonthlyUsd = null;
@@ -693,19 +1047,53 @@ async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom) {
 
   if (apiKey && !limitation.limited) {
     const prompt = [
-      `You are Pramana AI auditing public HTML of ${targetUrl} (hostname: ${hostname}).`,
+      `You are Pramana AI auditing STATIC PUBLIC HTML of ${targetUrl} (hostname: ${hostname}).`,
       `Surface Category: ${surfaceInfo.surfaceCategory}. Has Direct Payment Flow: ${surfaceInfo.hasDirectPaymentFlow}.`,
-      `Calibrated Severity: ${severity}. DOM Health Score: ${domHealthScore}/100.`,
-      `Scraped DOM facts: pageTitle="${scrapedDom.pageTitle}", primaryHeading="${primaryHeading}",`,
+      `Calibrated Severity: ${severity}. Static HTML Score: ${domHealthScore}/100.`,
+      `Observed facts: pageTitle="${scrapedDom.pageTitle}", primaryHeading="${primaryHeading}",`,
       `interactiveCount=${interactiveCount}, warnCount=${warnCount}, unlabeledInputsCount=${unlabeledInputsCount}, imagesMissingAlt=${imagesMissingAlt}, estimatedDomNodes=${estimatedDomNodes}.`,
-      'IMPORTANT: Do NOT invent any conversion drop percentage or dollar revenue loss. Return a strict JSON object with keys: anomalyTitle (string), summary (2 honest sentences citing exact scraped elements and stating that revenue metrics are not applicable on unauthenticated public HTML scrapes), targetSelector (string), recommendedCssFix (string).',
+      'IMPORTANT: Do NOT invent conversion drop percentages, revenue loss, or browser layout/contrast claims. Return strict JSON with keys: anomalyTitle (string), summary (2 honest sentences grounded only in static HTML facts).',
     ].join(' ');
 
     try {
-      llmResult = await callGoogleAiStudio('gemma-4-31b-it', apiKey, prompt);
-      if (!llmResult) {
-        activeModel = 'gemini-3.5-flash-lite';
-        llmResult = await callGoogleAiStudio('gemini-3.5-flash-lite', apiKey, prompt);
+      const r1 = await callGoogleAiStudio('gemma-4-31b-it', apiKey, prompt);
+      providerCalls.push({
+        model: 'gemma-4-31b-it',
+        status: r1.parsed ? 'OK' : `HTTP_${r1.httpStatus || 'ERR'}`,
+        latencyMs: r1.latencyMs,
+      });
+      if (r1.parsed) {
+        activeModel = 'gemma-4-31b-it';
+        llmResult = r1.parsed;
+        if (r1.usageMetadata) {
+          measuredTokenUsage = {
+            available: true,
+            inputTokens: r1.usageMetadata.promptTokenCount ?? null,
+            outputTokens: r1.usageMetadata.candidatesTokenCount ?? null,
+            totalTokens: r1.usageMetadata.totalTokenCount ?? null,
+            note: 'Measured from Google AI Studio usageMetadata.',
+          };
+        }
+      } else {
+        const r2 = await callGoogleAiStudio('gemini-3.5-flash-lite', apiKey, prompt);
+        providerCalls.push({
+          model: 'gemini-3.5-flash-lite',
+          status: r2.parsed ? 'OK' : `HTTP_${r2.httpStatus || 'ERR'}`,
+          latencyMs: r2.latencyMs,
+        });
+        if (r2.parsed) {
+          activeModel = 'gemini-3.5-flash-lite';
+          llmResult = r2.parsed;
+          if (r2.usageMetadata) {
+            measuredTokenUsage = {
+              available: true,
+              inputTokens: r2.usageMetadata.promptTokenCount ?? null,
+              outputTokens: r2.usageMetadata.candidatesTokenCount ?? null,
+              totalTokens: r2.usageMetadata.totalTokenCount ?? null,
+              note: 'Measured from Google AI Studio usageMetadata.',
+            };
+          }
+        }
       }
     } catch {
       llmResult = null;
@@ -713,18 +1101,18 @@ async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom) {
   }
 
   const anomalyTitle = limitation.limited
-    ? `${hostname}: ${limitation.title}`
+    ? `${hostname}: Unverified (${limitation.title})`
     : llmResult?.anomalyTitle ||
       (severity === 'PASS'
-        ? `${hostname}: Clean Baseline HTML/A11y Audit (${domHealthScore}/100 Across ${estimatedDomNodes} Nodes)`
-        : `${hostname} (${surfaceInfo.surfaceCategory}): ${totalFlags} Markup/A11y Finding${totalFlags === 1 ? '' : 's'} (${severity})`);
+        ? `${hostname}: Static HTML Accessibility Census Passed (${domHealthScore}/100 across ${estimatedDomNodes} nodes)`
+        : `${hostname} (${surfaceInfo.surfaceCategory}): ${totalFlags} Static HTML Finding${totalFlags === 1 ? '' : 's'} (${severity})`);
 
-  const targetSelector = llmResult?.targetSelector || computedSelector;
+  const targetSelector = primaryFinding?.diagnosticSelector || 'document';
 
   const summary = limitation.limited
-    ? limitation.explanation
+    ? `${limitation.explanation} Surface classified as ${surfaceInfo.surfaceCategory}.`
     : llmResult?.summary ||
-      `${surfaceInfo.paymentContextNote} Static HTML inspection of "${scrapedDom.pageTitle}" (${estimatedDomNodes} nodes, ${scrapedDom.htmlKilobytes} KB, ${totalScripts} scripts) found ${unlabeledInputsCount}/${inputsCount} unlabeled inputs, ${imagesMissingAlt}/${totalImages} images missing alt attributes, and ${warnCount}/${interactiveCount} controls needing explicit ARIA/ID attributes.`;
+      `${surfaceInfo.paymentContextNote} Static HTML inspection of "${scrapedDom.pageTitle}" (${estimatedDomNodes} nodes, ${scrapedDom.htmlKilobytes} KB, ${totalScripts} scripts) observed ${unlabeledInputsCount}/${inputsCount} unlabeled inputs, ${imagesMissingAlt}/${totalImages} images missing alt attributes, and ${warnCount}/${interactiveCount} control warnings.`;
 
   const t1 = (scrapedDom.fetchLatencyMs / 1000).toFixed(3);
   const t2 = ((scrapedDom.fetchLatencyMs + 120) / 1000).toFixed(3);
@@ -734,96 +1122,82 @@ async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom) {
     {
       lvl: limitation.limited ? 'WARN' : 'INFO',
       at: `00:0${t1}`,
-      msg: `Mode: LIVE_PUBLIC_HTML_SCRAPE · HTTP ${scrapedDom.httpStatus} (${scrapedDom.fetchLatencyMs}ms) · Surface: ${surfaceInfo.surfaceCategory}`,
+      msg: `Mode: LIVE_PUBLIC_HTML_SCRAPE (Static HTML Only) · HTTP ${scrapedDom.httpStatus} (${scrapedDom.fetchLatencyMs}ms) · Surface: ${surfaceInfo.surfaceCategory}`,
       src: `${hostname}`,
     },
     {
       lvl: 'INFO',
       at: `00:0${t2}`,
-      msg: `Revenue / Conversion Metric: NOT APPLICABLE (${surfaceInfo.hasDirectPaymentFlow ? 'No merchant analytics connected' : 'No checkout/payment funnel on this route'})`,
+      msg: `Revenue / Conversion Metric: NOT APPLICABLE (${surfaceInfo.isCommerceSurface ? 'No merchant analytics connected' : 'No checkout/payment funnel on this route'})`,
       src: 'SurfaceClassifier',
     },
     {
-      lvl: totalFlags > 0 ? 'WARN' : 'INFO',
+      lvl: limitation.limited || totalFlags > 0 ? 'WARN' : 'INFO',
       at: `00:0${t3}`,
       msg: limitation.limited
-        ? limitation.explanation
-        : `DOM & A11y Census (${estimatedDomNodes} nodes, ${formsCount} forms, ${inputsCount} inputs): ${unlabeledInputsCount} unlabeled inputs, ${imagesMissingAlt} missing-alt images, ${warnCount} control warnings -> Calibrated Severity: ${severity} (${domHealthScore}/100)`,
+        ? `FAIL-CLOSED (${limitation.code}): ${limitation.explanation}`
+        : `Static HTML Census (${estimatedDomNodes} nodes, ${formsCount} forms, ${inputsCount} inputs): ${unlabeledInputsCount} unlabeled inputs, ${imagesMissingAlt} missing-alt images, ${warnCount} control warnings -> Severity: ${severity} (${domHealthScore}/100)`,
       src: 'TraceCorrelatorSkill',
     },
   ];
 
-  const sparkSeries = Array.from({ length: 14 }, (_, idx) => {
-    const jitter = (((estimatedDomNodes + idx * 3) % 5) - 2) * 0.3;
-    return Number(Math.max(40, Math.min(100, domHealthScore + jitter)).toFixed(1));
-  });
+  // T-305 & T-307: Remediation is strictly gated on observed evidence and suppressed on UNVERIFIED / PASS
+  let diffLines;
+  let remediationType;
+  if (limitation.limited) {
+    remediationType = 'UNVERIFIED_REQUIRES_BROWSER_RUNTIME';
+    diffLines = [
+      { t: 'ctx', c: `/* UNVERIFIED (${limitation.code}): Remediation suppressed for ${hostname} */` },
+      { t: 'ctx', c: `/* Reason: ${limitation.title} */` },
+      { t: 'ctx', c: '/* Pramana refuses to generate generic navigation fixes when the requested page content was not rendered in static HTML. */' },
+    ];
+  } else if (!remediationEligible) {
+    remediationType = 'NO_STATIC_FIX_REQUIRED';
+    diffLines = [
+      { t: 'ctx', c: `/* ${hostname} (${targetUrl}) — Static HTML & A11y Census Passed (${domHealthScore}/100) */` },
+      { t: 'ctx', c: `/* 0 unlabeled inputs, 0 missing-alt images, ${interactiveCount} controls verified in static HTML. */` },
+      { t: 'ctx', c: '/* Note: Layout overlap, computed contrast, and JS interactions require an ephemeral browser runtime. */' },
+    ];
+  } else {
+    remediationType = 'SUGGESTED_DOM_CSS_SNIPPET_ONLY';
+    diffLines = [
+      { t: 'ctx', c: `/* Grounded in Finding [${primaryFinding.id}]: ${primaryFinding.title} */` },
+      { t: 'ctx', c: `/* Evidence Source: STATIC_HTML · Role: ${primaryFinding.role} · No GitHub Repo Connected */` },
+      { t: 'del', c: primaryFinding.remediationSnippet.del },
+      { t: 'add', c: primaryFinding.remediationSnippet.add },
+    ];
+  }
 
-  const replayEvents = [
-    {
-      t: 2,
-      label: `HTTP ${scrapedDom.httpStatus || 'ERR'} GET ${hostname} (${scrapedDom.fetchLatencyMs}ms, ${scrapedDom.htmlKilobytes} KB)`,
-      kind: limitation.limited ? 'warn' : 'ok',
+  const telemetry = {
+    credentialsConfigured: Boolean(process.env.GEMINI_API_KEY),
+    providerCalls,
+    providerCallCount: providerCalls.length,
+    estimatedMarginalCostUsd: AMORTIZED_AUDIT_COST_USD,
+    costCeilingUsd: UNIT_ECONOMICS_CEILING_USD,
+    costBasis: 'AMORTIZED_ESTIMATE_NOT_MEASURED_BILLING',
+    measuredTokenUsage,
+    billingVerification: {
+      status: 'UNVERIFIED_FROM_API_KEY',
+      note: 'GEMINI_API_KEY presence does not verify account billing plan or actual charges. Free-tier infrastructure ($0.00) is governed by INV-01.',
     },
-    {
-      t: 5,
-      label: surfaceInfo.hasDirectPaymentFlow
-        ? 'Checkout route detected (No private analytics connected)'
-        : `Non-checkout surface (${surfaceInfo.surfaceCategory}) — Revenue N/A`,
-      kind: 'cy',
-    },
-    {
-      t: 8,
-      label: limitation.limited
-        ? limitation.title
-        : `Audited ${interactiveCount} controls & ${inputsCount} inputs (${totalFlags} A11y/DOM flags)`,
-      kind: totalFlags > 0 || limitation.limited ? 'warn' : 'ok',
-    },
-    {
-      t: 11,
-      label: `Calibrated Verdict: ${severity} · DOM Readiness ${domHealthScore}/100`,
-      kind: severity === 'PASS' || severity === 'LOW' ? 'ok' : 'warn',
-    },
-  ];
-
-  const cleanId = (
-    (primaryEl.id && !primaryEl.id.startsWith('name=') ? primaryEl.id : '') ||
-    primaryEl.label
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') ||
-    'primary-control'
-  ).slice(0, 32);
-
-  const diffLines =
-    severity === 'PASS'
-      ? [
-          { t: 'ctx', c: `/* ${hostname} (${targetUrl}) — Baseline Static HTML & A11y Audit Passed (${domHealthScore}/100) */` },
-          { t: 'ctx', c: `/* 0 unlabeled inputs, 0 missing-alt images, ${interactiveCount} accessible controls verified. */` },
-          { t: 'ctx', c: `/* Note: Connect GitHub App & Playwright Sandbox to audit dynamic JS state or open repo PRs. */` },
-        ]
-      : [
-          { t: 'ctx', c: `/* Suggested Public DOM / ARIA Snippet for ${hostname} (No GitHub Repo Connected) */` },
-          { t: 'ctx', c: `/* Page Title: "${scrapedDom.pageTitle.slice(0, 64)}" */` },
-          {
-            t: 'del',
-            c: `<${primaryEl.tag}${primaryEl.className ? ` class="${primaryEl.className.replace(/\./g, ' ')}"` : ''}>${primaryEl.label}</${primaryEl.tag}>`,
-          },
-          {
-            t: 'add',
-            c: `<${primaryEl.tag} id="${cleanId}" aria-label="${primaryEl.label}" class="${primaryEl.className ? primaryEl.className.replace(/\./g, ' ') + ' ' : ''}min-h-[44px] focus-visible:outline-2">${primaryEl.label}</${primaryEl.tag}>`,
-          },
-        ];
+  };
 
   return {
     activeModel,
     executionMode: llmResult ? 'live_public_html_scrape_plus_gemini' : 'live_public_html_scrape',
+    telemetry,
     customFinding: {
       auditMode: 'LIVE_PUBLIC_HTML_SCRAPE',
+      capabilityScope: 'STATIC_HTML_ONLY',
       prAvailable: false,
-      remediationType: 'SUGGESTED_DOM_CSS_SNIPPET_ONLY',
+      remediationEligible,
+      remediationType,
+      remediationTargetFindingId: primaryFinding?.id || null,
       prNumber: null,
       anomalyTitle,
       severity,
+      surfaceType: surfaceInfo.surfaceType,
+      isCommerceSurface: surfaceInfo.isCommerceSurface,
       hasDirectPaymentFlow: surfaceInfo.hasDirectPaymentFlow,
       revenueMetricApplicable: false,
       surfaceCategory: surfaceInfo.surfaceCategory,
@@ -841,55 +1215,41 @@ async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom) {
       leakedMonthlyInr,
       summary,
       targetSelector,
-      sparkSeries,
-      replayEvents,
-      voiceTranscript: {
-        lang: 'English · Public DOM Inspector',
-        node: targetSelector,
-        match: 'Static HTML',
-        lines: [
-          {
-            who: `Auditor on ${hostname}`,
-            text: `Inspecting public HTML of ${hostname} (${surfaceInfo.surfaceCategory}). Revenue metrics are disabled because this is an unauthenticated public scrape.`,
-          },
-          {
-            who: 'Orb · Gemini Live',
-            text: `Parsed ${estimatedDomNodes} static DOM nodes on ${hostname}. Severity calibrated to ${severity} (${domHealthScore}/100 DOM Readiness).`,
-          },
-        ],
-        cue: 'Lyria cue: neutral inspection tone',
-      },
-      recommendedCssFix:
-        llmResult?.recommendedCssFix ||
-        `${targetSelector} { min-height: 44px; outline-offset: 2px; }`,
+      findings,
       rootCauseLogs,
-      diffFile: `suggested-snippet-${hostname}.html (No Repo Connected)`,
+      diffFile: remediationEligible
+        ? `suggested-fix-${primaryFinding.id.toLowerCase()}.html (No Repo Connected)`
+        : `no-patch-${hostname}.txt`,
       astReferenceFile: null,
       diffLines,
       skillsTrace: [
         {
           name: 'BrowserSandboxSkill',
           dur: `${(scrapedDom.fetchLatencyMs / 1000).toFixed(2)}s`,
-          desc: `Server-side HTTP GET (${scrapedDom.htmlKilobytes} KB static HTML, ${estimatedDomNodes} nodes) — No headless JS execution in public mode`,
+          desc: `Static HTTP GET (${scrapedDom.htmlKilobytes} KB, ${estimatedDomNodes} nodes, ${totalScripts} scripts) — No headless browser JS execution`,
           log: `GET ${targetUrl} -> HTTP ${scrapedDom.httpStatus} (${scrapedDom.fetchLatencyMs}ms)`,
         },
         {
           name: 'TraceCorrelatorSkill',
           dur: '0.18s',
-          desc: `Surface classified as "${surfaceInfo.surfaceCategory}" · Revenue/conversion metrics disabled (honest calibration)`,
-          log: `Severity: ${severity} · ${unlabeledInputsCount} unlabeled inputs, ${imagesMissingAlt} missing-alt images`,
+          desc: `Surface: "${surfaceInfo.surfaceCategory}" · Shell check: ${limitation.code}`,
+          log: limitation.limited
+            ? `FAIL-CLOSED -> UNVERIFIED (${limitation.code})`
+            : `Severity: ${severity} · ${unlabeledInputsCount} unlabeled inputs, ${imagesMissingAlt} missing-alt images`,
         },
         {
           name: 'ASTBlastRadiusSkill',
-          dur: '0.05s',
+          dur: '0.02s',
           desc: 'Skipped AST repo traversal (No GitHub repository connected for external public URL)',
-          log: 'AST mapping requires Connected GitHub App mode (available in Sandbox Benchmarks)',
+          log: 'AST mapping requires Connected GitHub App mode (INV-04)',
         },
         {
           name: 'GitPatchSkill',
-          dur: '0.11s',
-          desc: `Generated copyable HTML/ARIA suggestion for ${hostname} (No fake PR opened)`,
-          log: 'Remediation mode: SUGGESTED_DOM_CSS_SNIPPET_ONLY',
+          dur: '0.05s',
+          desc: remediationEligible
+            ? `Derived HTML/ARIA snippet from finding ${primaryFinding.id} (No PR opened)`
+            : `Suppressed patch generation (${remediationType})`,
+          log: `Remediation mode: ${remediationType}`,
         },
       ],
     },
@@ -954,9 +1314,10 @@ export default async function handler(req, res) {
   ).trim();
   const scenarioId = BENCHMARK_FIXTURES[requestedScenario] ? requestedScenario : 'S1_HINDI_OVERFLOW';
 
-  const rawUrl = suppliedUrl !== undefined && suppliedUrl !== null && String(suppliedUrl).trim() !== ''
-    ? String(suppliedUrl).trim()
-    : 'https://checkout.zestkart.in/v2/payment';
+  const rawUrl =
+    suppliedUrl !== undefined && suppliedUrl !== null && String(suppliedUrl).trim() !== ''
+      ? String(suppliedUrl).trim()
+      : 'https://checkout.zestkart.in/v2/payment';
 
   if (/^(javascript:|data:|file:|ftp:)/i.test(rawUrl)) {
     return res.status(400).json({
@@ -979,8 +1340,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const isPresetFixture =
-    hostname.includes('zestkart.in') || hostname.includes('scalegrid.io');
+  const isPresetFixture = hostname.includes('zestkart.in') || hostname.includes('scalegrid.io');
 
   if (!isPresetFixture && isBlockedSsrfHost(hostname)) {
     return res.status(400).json({
@@ -996,6 +1356,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       auditMode: 'BENCHMARK_FIXTURE',
+      capabilityScope: 'CONNECTED_DEMO_BENCHMARK',
       isPresetFixture: true,
       isCustomUrl: false,
       is_custom_url: false,
@@ -1016,6 +1377,19 @@ export default async function handler(req, res) {
       },
       telemetry_cost_usd: Math.min(AMORTIZED_AUDIT_COST_USD, UNIT_ECONOMICS_CEILING_USD),
       costCeilingUsd: UNIT_ECONOMICS_CEILING_USD,
+      telemetry: {
+        credentialsConfigured: Boolean(process.env.GEMINI_API_KEY),
+        providerCalls: [],
+        providerCallCount: 0,
+        estimatedMarginalCostUsd: AMORTIZED_AUDIT_COST_USD,
+        costCeilingUsd: UNIT_ECONOMICS_CEILING_USD,
+        costBasis: 'BENCHMARK_FIXTURE_ESTIMATE',
+        measuredTokenUsage: { available: false, inputTokens: null, outputTokens: null, totalTokens: null },
+        billingVerification: {
+          status: 'UNVERIFIED_FROM_API_KEY',
+          note: 'Pre-recorded benchmark fixture (0 live provider calls).',
+        },
+      },
       page_metadata: {
         page_title: `${hostname} — ${fx.anomalyTitle}`,
         http_status: 200,
@@ -1034,12 +1408,17 @@ export default async function handler(req, res) {
         interactiveElements: [
           {
             tag: 'button',
+            role: 'button',
+            accessibleName: fx.targetSelector,
             label: fx.targetSelector,
             id: fx.targetSelector.replace(/^#/, ''),
             className: 'cta-primary',
+            diagnosticSelector: fx.targetSelector,
             href: null,
             hasAriaLabel: true,
             auditStatus: 'CRITICAL',
+            claimType: 'OBSERVED_FACT',
+            evidenceSource: 'RENDERED_BROWSER',
             auditReason: fx.summary,
           },
         ],
@@ -1056,7 +1435,9 @@ export default async function handler(req, res) {
       },
       customFinding: {
         auditMode: 'BENCHMARK_FIXTURE',
+        capabilityScope: 'CONNECTED_DEMO_BENCHMARK',
         prAvailable: true,
+        remediationEligible: true,
         remediationType: 'AST_VERIFIED_GITHUB_PR',
         prNumber: fx.prNumber,
         anomalyTitle: fx.anomalyTitle,
@@ -1108,7 +1489,7 @@ export default async function handler(req, res) {
   }
 
   const scrapedDom = await scrapeLiveDom(targetUrl);
-  const { activeModel, executionMode, customFinding } = await synthesizeCustomSiteAudit(
+  const { activeModel, executionMode, telemetry, customFinding } = await synthesizeCustomSiteAudit(
     targetUrl,
     hostname,
     scrapedDom
@@ -1118,6 +1499,7 @@ export default async function handler(req, res) {
   return res.status(200).json({
     ok: true,
     auditMode: 'LIVE_PUBLIC_HTML_SCRAPE',
+    capabilityScope: 'STATIC_HTML_ONLY',
     isPresetFixture: false,
     isCustomUrl: true,
     is_custom_url: true,
@@ -1138,6 +1520,7 @@ export default async function handler(req, res) {
     },
     telemetry_cost_usd: Math.min(AMORTIZED_AUDIT_COST_USD, UNIT_ECONOMICS_CEILING_USD),
     costCeilingUsd: UNIT_ECONOMICS_CEILING_USD,
+    telemetry,
     page_metadata: {
       page_title: scrapedDom.pageTitle,
       http_status: scrapedDom.httpStatus,

@@ -3,272 +3,379 @@ import { useLiveAudit } from "./hooks/useLiveAudit";
 import { LiveTelemetryStrip } from "./components/LiveTelemetryStrip";
 import { extractBrandFromUrl, validateAuditReportPayload } from "./schemas/auditReportValidator";
 import { QuotaAwareRouter, LyriaWebAudioSynth } from "./services/quotaRouter";
+import {
+  INITIAL_LIVE_AUDIT_STATE,
+  beginLiveAudit,
+  resolveLiveAudit,
+  failLiveAudit,
+  resetLiveAudit,
+} from "./utils/liveAuditState";
 
 // Internal surface registry preserved for contract verification
 const INTERNAL_SURFACE_ROUTES = ["/demo-store/index.html", "/proof/index.html", "/deck/index.html"];
 void INTERNAL_SURFACE_ROUTES;
 
 const HISTORY_STORAGE_KEY = "pramana_recent_audits_v1";
+const THEME_STORAGE_KEY = "pramana_theme_v1";
 
-/* ═════════════ Restrained Editorial Product Styles ═════════════ */
+/* ═════════════ Stitch "Obsidian Telemetry" + Editorial Light Design System ═════════════ */
 const EDITORIAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@400;500;600;700;700;800&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+Devanagari:wght@600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@600;700&display=swap');
 
-  :root {
-    --paper: #F6F7FB; --card: #FFFFFF; --ink: #0B1020; --ink2: #3B4259; --mute: #636A82; --rule: #D8DCEA; --rule2: #ECEEF6;
-    --blue: #2B3BFF; --blue-d: #1B27C7; --blue-w: #E3E7FF;
-    --red: #F0431F; --red-d: #C2300F; --red-w: #FFE5DD;
-    --green: #00A36C; --green-d: #007A51; --green-w: #D8F5E8;
-    --gold: #FFB400; --gold-d: #8A5F00; --gold-w: #FFF0C2;
-    --display: 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif;
+  /* Default: Stitch Obsidian Telemetry (Developer Workstation Dark) */
+  :root, [data-theme="dark"] {
+    --paper: #0A0C12;
+    --card: #11141E;
+    --well: #080A0F;
+    --elevated: #161B28;
+    --ink: #F1F5F9;
+    --ink2: #94A3B8;
+    --mute: #64748B;
+    --rule: #1E2436;
+    --rule2: #2B334B;
+    --mast-bg: rgba(10, 12, 18, 0.88);
+    --mast-border: #1E2436;
+    --blue: #3B5BFF;
+    --blue-d: #8196FF;
+    --blue-w: rgba(59, 91, 255, 0.14);
+    --cyan: #06B6D4;
+    --cyan-w: rgba(6, 182, 212, 0.12);
+    --red: #EF4444;
+    --red-d: #F87171;
+    --red-w: rgba(239, 68, 68, 0.12);
+    --green: #10B981;
+    --green-d: #34D399;
+    --green-w: rgba(16, 185, 129, 0.12);
+    --gold: #F59E0B;
+    --gold-d: #FBBF24;
+    --gold-w: rgba(245, 158, 11, 0.12);
+    --display: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+    --serif: 'Bodoni Moda', 'Didot', Georgia, serif;
     --sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    color-scheme: dark;
+  }
+
+  /* Optional: Editorial Broadsheet Light */
+  [data-theme="light"] {
+    --paper: #F6F7FB;
+    --card: #FFFFFF;
+    --well: #FBFBFE;
+    --elevated: #FFFFFF;
+    --ink: #0B1020;
+    --ink2: #3B4259;
+    --mute: #636A82;
+    --rule: #D8DCEA;
+    --rule2: #ECEEF6;
+    --mast-bg: rgba(246, 247, 251, 0.9);
+    --mast-border: #0B1020;
+    --blue: #2B3BFF;
+    --blue-d: #1B27C7;
+    --blue-w: #E3E7FF;
+    --cyan: #0891B2;
+    --cyan-w: #CFFAFE;
+    --red: #F0431F;
+    --red-d: #C2300F;
+    --red-w: #FFE5DD;
+    --green: #00A36C;
+    --green-d: #007A51;
+    --green-w: #D8F5E8;
+    --gold: #FFB400;
+    --gold-d: #8A5F00;
+    --gold-w: #FFF0C2;
+    --display: 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif;
+    --serif: 'Bodoni Moda', 'Didot', Georgia, serif;
     color-scheme: light;
   }
+
   *, *::before, *::after { box-sizing: border-box; }
   html, body { background: var(--paper); color: var(--ink); }
   body {
-    margin: 0; color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
-    background: radial-gradient(760px 340px at 88% -40px, rgba(43,59,255,.08), transparent 70%),
-                radial-gradient(560px 300px at 0 0, rgba(255,180,0,.08), transparent 70%), var(--paper);
-    background-repeat: no-repeat;
+    margin: 0; color: var(--ink); font-family: var(--sans); font-size: 14.5px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+    background: var(--paper);
+  }
+  [data-theme="dark"] .page {
+    background:
+      radial-gradient(840px 360px at 50% -120px, rgba(59, 91, 255, 0.14), transparent 70%),
+      radial-gradient(520px 260px at 88% 0%, rgba(6, 182, 212, 0.08), transparent 70%),
+      var(--paper);
+  }
+  [data-theme="light"] .page {
+    background:
+      radial-gradient(760px 340px at 88% -40px, rgba(43, 59, 255, .08), transparent 70%),
+      radial-gradient(560px 300px at 0 0, rgba(255, 180, 0, .08), transparent 70%),
+      var(--paper);
   }
   .gutter { padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
-  .page { min-height: 100vh; display: flex; flex-direction: column; background: transparent; color: var(--ink); }
-  .main { flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding-block: 28px 40px; }
-  .mast > .gutter, .colophon > .gutter { max-width: 1240px; margin: 0 auto; width: 100%; }
+  .page { min-height: 100vh; display: flex; flex-direction: column; color: var(--ink); }
+  .main { flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding-block: 26px 44px; }
+  .mast > .gutter, .colophon > .gutter { max-width: 1280px; margin: 0 auto; width: 100%; }
   button { font-family: inherit; cursor: pointer; color: inherit; }
-  button:disabled { cursor: default; }
-  button:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+  button:disabled { cursor: not-allowed; opacity: 0.55; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .mono { font-family: var(--mono); }
   .tnum { font-variant-numeric: tabular-nums; }
   em { font-style: italic; }
 
-  /* ── Minimal Masthead ── */
-  .mast { border-bottom: 2px solid var(--ink); background: rgba(246,247,251,.88); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 80; }
-  .mast-main { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 24px; padding: 14px 0; }
-  .brand-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; cursor: pointer; }
-  .wordmark { margin: 0; font: 800 32px/1 var(--display); letter-spacing: -.025em; color: var(--ink); }
-  .wordmark em { font-weight: 500; color: var(--blue); margin-left: .1em; }
-  .deva { font: 700 18px/1 'Noto Serif Devanagari', var(--display); color: var(--blue); }
-  .brand-tagline { font-size: 13.5px; font-weight: 500; color: var(--ink2); border-left: 1.5px solid var(--rule); padding-left: 12px; }
-  .nav-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  /* ── Sticky Workstation Masthead ── */
+  .mast { border-bottom: 1px solid var(--mast-border); background: var(--mast-bg); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 80; }
+  .mast-main { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 24px; padding: 12px 0; }
+  .brand-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; cursor: pointer; }
+  .wordmark { margin: 0; font: 800 24px/1 var(--serif); letter-spacing: -.025em; color: var(--ink); }
+  .wordmark em { font-weight: 500; color: var(--blue-d); margin-left: .08em; }
+  .deva { font: 700 15px/1 'Noto Serif Devanagari', var(--serif); color: var(--cyan); }
+  .brand-tagline { font-size: 12.5px; font-weight: 500; color: var(--ink2); border-left: 1px solid var(--rule); padding-left: 12px; }
+  .nav-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .nav-pill {
-    display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px;
-    border: 1px solid var(--rule); background: var(--card); color: var(--ink2); font: 600 12.5px/1 var(--sans);
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px;
+    border: 1px solid var(--rule); background: var(--card); color: var(--ink2); font: 600 12px/1 var(--sans);
     transition: all .15s; text-decoration: none;
   }
-  .nav-pill:hover { border-color: var(--ink); color: var(--ink); }
-  .nav-pill.active { background: var(--ink); color: #fff; border-color: var(--ink); }
-  .nav-pill.accent { background: var(--blue-w); color: var(--blue-d); border-color: rgba(43,59,255,.3); font-weight: 700; }
+  .nav-pill:hover { border-color: var(--rule2); color: var(--ink); background: var(--elevated); }
+  .nav-pill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .nav-pill.accent { background: var(--blue-w); color: var(--blue-d); border-color: rgba(59,91,255,.35); font-weight: 700; }
 
-  /* ── Quiet Command Hero (First Paint Restraint) ── */
-  .quiet-hero { max-width: 820px; margin: 18px auto 0; text-align: center; }
-  .quiet-headline { margin: 0; font: 700 clamp(32px, 4.5vw, 52px)/1.06 var(--display); letter-spacing: -.022em; color: var(--ink); text-wrap: balance; }
-  .quiet-headline em { font-weight: 500; color: var(--blue); }
-  .quiet-sub { margin: 12px auto 0; max-width: 56ch; font-size: 16px; color: var(--ink2); }
+  /* ── Focused Command Hero ── */
+  .quiet-hero { max-width: 860px; margin: 12px auto 0; text-align: center; }
+  .quiet-headline { margin: 0; font: 700 clamp(28px, 4vw, 44px)/1.08 var(--display); letter-spacing: -.025em; color: var(--ink); text-wrap: balance; }
+  .quiet-headline em { font-style: normal; color: var(--blue-d); }
+  .quiet-sub { margin: 10px auto 0; max-width: 60ch; font-size: 14.5px; color: var(--ink2); }
 
-  /* ── Single Mode Switch + Command Bar ── */
-  .mode-switch-bar { display: inline-flex; background: var(--rule2); padding: 4px; border-radius: 999px; margin: 22px auto 16px; border: 1px solid var(--rule); }
+  /* ── Segmented Mode Switch + Monolithic Command Bar ── */
+  .mode-switch-bar { display: inline-flex; background: var(--well); padding: 3px; border-radius: 8px; margin: 18px auto 14px; border: 1px solid var(--rule); }
   .mode-tab {
-    border: 0; background: transparent; padding: 7px 16px; border-radius: 999px; font: 700 12.5px var(--sans); color: var(--mute);
-    display: inline-flex; align-items: center; gap: 6px; transition: all .15s;
+    border: 0; background: transparent; padding: 7px 14px; border-radius: 6px; font: 600 12.5px var(--sans); color: var(--ink2);
+    display: inline-flex; align-items: center; gap: 7px; transition: all .15s;
   }
-  .mode-tab.on { background: var(--card); color: var(--ink); box-shadow: 0 2px 8px rgba(11,16,32,.08); }
+  .mode-tab.on { background: var(--elevated); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule2); }
 
   .cmd-box {
-    max-width: 780px; margin: 0 auto; background: var(--card); border: 2px solid var(--ink); border-radius: 20px;
-    padding: 10px; box-shadow: 0 22px 44px -24px rgba(11,16,32,.22); transition: box-shadow .15s;
+    max-width: 820px; margin: 0 auto; background: var(--well); border: 1px solid var(--rule2); border-radius: 10px;
+    padding: 6px; transition: border-color .15s, box-shadow .15s;
   }
-  .cmd-box:focus-within { box-shadow: 0 0 0 4px var(--blue-w), 0 22px 44px -24px rgba(43,59,255,.3); border-color: var(--blue); }
-  .cmd-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .cmd-input-wrap { flex: 1 1 320px; display: flex; align-items: center; gap: 10px; padding: 0 12px; height: 48px; }
-  .cmd-input-wrap input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: 500 14.5px var(--mono); color: var(--ink); }
+  .cmd-box:focus-within {
+    border-color: var(--blue);
+    box-shadow: inset 0 0 0 1px var(--blue), 0 0 0 3px rgba(59, 91, 255, 0.16);
+  }
+  .cmd-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cmd-input-wrap { flex: 1 1 320px; display: flex; align-items: center; gap: 10px; padding: 0 10px; height: 42px; }
+  .cmd-input-wrap input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: 500 13.5px var(--mono); color: var(--ink); }
+  .cmd-input-wrap input::placeholder { color: var(--mute); }
+  .kbd-hint {
+    font: 600 11px/1 var(--mono); color: var(--mute); background: var(--card); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 4px 6px; user-select: none; flex-shrink: 0;
+  }
   .cmd-btn {
-    height: 48px; padding: 0 22px; border: 0; border-radius: 13px; background: var(--blue); color: #fff;
-    font: 800 14.5px var(--sans); display: inline-flex; align-items: center; gap: 8px; transition: background .15s, transform .1s;
+    height: 42px; padding: 0 18px; border: 1px solid transparent; border-radius: 7px; background: var(--blue); color: #fff;
+    font: 700 13.5px var(--sans); display: inline-flex; align-items: center; gap: 7px; transition: background .15s, transform .1s;
     white-space: nowrap;
   }
-  .cmd-btn:hover:not(:disabled) { background: var(--blue-d); }
+  .cmd-btn:hover:not(:disabled) { background: #4F6DFF; }
   .cmd-btn:active:not(:disabled) { transform: translateY(1px); }
-  .cmd-btn:disabled { opacity: .75; }
 
   .cmd-meta {
-    max-width: 780px; margin: 10px auto 0; display: flex; justify-content: space-between; align-items: center;
-    flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--mute); text-align: left; padding: 0 4px;
+    max-width: 820px; margin: 10px auto 0; display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--mute); text-align: left; padding: 0 2px;
   }
   .sample-chips { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
   .sample-chip {
-    border: 1px solid var(--rule); background: var(--card); color: var(--ink2); border-radius: 999px;
-    padding: 3px 10px; font: 600 11.5px var(--mono); transition: all .15s;
+    border: 1px solid var(--rule); background: var(--card); color: var(--ink2); border-radius: 5px;
+    padding: 3px 9px; font: 500 11.5px var(--mono); transition: all .15s;
   }
-  .sample-chip:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-w); }
-  .limitation-line { font-size: 12px; color: var(--mute); }
+  .sample-chip:hover { border-color: var(--blue); color: var(--blue-d); background: var(--blue-w); }
+  .limitation-line { font-size: 11.5px; color: var(--mute); }
 
-  /* ── Ready State: 3-Step How It Works + Recent Audits History ── */
-  .ready-grid { max-width: 980px; margin: 36px auto 0; display: grid; gap: 24px; }
-  .steps-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-  .step-card { background: var(--card); border: 1px solid var(--rule); border-radius: 16px; padding: 18px 20px; }
-  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--blue-w); color: var(--blue-d); font: 800 11.5px var(--mono); margin-bottom: 10px; }
-  .step-card h3 { margin: 0 0 6px; font: 700 16px/1.25 var(--sans); color: var(--ink); }
-  .step-card p { margin: 0; font-size: 13.5px; color: var(--ink2); line-height: 1.45; }
+  /* ── Ready State: 3-Step Workflow + Recent History ── */
+  .ready-grid { max-width: 1040px; margin: 28px auto 0; display: grid; gap: 18px; }
+  .steps-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .step-card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; }
+  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; background: var(--blue-w); color: var(--blue-d); font: 700 11px var(--mono); margin-bottom: 10px; }
+  .step-card h3 { margin: 0 0 6px; font: 700 15px/1.25 var(--sans); color: var(--ink); }
+  .step-card p { margin: 0; font-size: 13px; color: var(--ink2); line-height: 1.5; }
 
-  .history-card { background: var(--card); border: 1px solid var(--rule); border-radius: 16px; padding: 16px 20px; }
+  .history-card { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 18px; }
   .history-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .history-list { display: flex; flex-wrap: wrap; gap: 8px; }
   .history-item {
-    display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 10px;
-    border: 1px solid var(--rule); background: var(--paper); font-size: 12.5px; transition: all .15s;
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px;
+    border: 1px solid var(--rule); background: var(--well); font-size: 12px; transition: all .15s;
   }
-  .history-item:hover { border-color: var(--blue); background: #fff; }
+  .history-item:hover { border-color: var(--blue); background: var(--elevated); }
 
-  /* ── Calm Live URL Audit Report (PageSpeed / Sentry Inspired) ── */
-  .calm-report { max-width: 1040px; margin: 28px auto 0; display: grid; gap: 20px; animation: rise .35s ease both; }
+  /* ── Pending Skeleton & Error Cards (T-306 Honest States) ── */
+  .pending-card {
+    max-width: 1040px; margin: 24px auto 0; background: var(--card); border: 1px solid var(--blue);
+    border-radius: 10px; padding: 20px 22px; display: grid; gap: 14px;
+    box-shadow: 0 0 24px rgba(59, 91, 255, 0.1);
+  }
+  .shimmer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .shimmer-box {
+    height: 76px; border-radius: 8px; border: 1px solid var(--rule);
+    background: linear-gradient(90deg, var(--well) 25%, var(--elevated) 50%, var(--well) 75%);
+    background-size: 200% 100%; animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+  /* ── Stitch Obsidian Telemetry Live Report ── */
+  .calm-report { max-width: 1180px; margin: 24px auto 0; display: grid; gap: 16px; animation: rise .25s ease both; }
   .report-bar {
-    background: var(--card); border: 1px solid var(--rule); border-radius: 18px; padding: 16px 22px;
-    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 20px;
+    background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 20px;
+    display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px 20px;
   }
   .action-group { display: flex; flex-wrap: wrap; gap: 8px; }
   .btn-act {
-    display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 10px;
-    border: 1px solid var(--rule); background: var(--paper); color: var(--ink); font: 700 12.5px var(--sans);
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 6px;
+    border: 1px solid var(--rule2); background: var(--well); color: var(--ink); font: 600 12px var(--sans);
     transition: all .15s; text-decoration: none;
   }
-  .btn-act:hover { border-color: var(--ink); background: #fff; }
+  .btn-act:hover:not(:disabled) { border-color: var(--blue); background: var(--elevated); }
   .btn-act.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
-  .btn-act.primary:hover { background: var(--blue-d); }
-  .btn-act.green { background: var(--green-d); color: #fff; border-color: var(--green-d); }
+  .btn-act.primary:hover:not(:disabled) { background: #4F6DFF; }
+  .btn-act.green { background: var(--green); color: #052e1c; border-color: var(--green); font-weight: 700; }
 
-  .vitals-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
-  .vital-box { background: var(--card); border: 1px solid var(--rule); border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; justify-content: space-between; }
-  .vital-val { font: 800 32px/1 var(--display); color: var(--ink); margin-top: 6px; }
+  .vitals-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .vital-box {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px;
+    display: flex; flex-direction: column; justify-content: space-between; gap: 6px;
+  }
+  .vital-val { font: 700 28px/1.05 var(--mono); color: var(--ink); letter-spacing: -.02em; }
   .vital-val.ok { color: var(--green-d); }
   .vital-val.warn { color: var(--gold-d); }
   .vital-val.err { color: var(--red-d); }
+  .micro-bar { height: 4px; border-radius: 2px; background: var(--well); overflow: hidden; margin-top: 2px; }
+  .micro-bar > div { height: 100%; border-radius: 2px; transition: width .3s ease; }
 
-  /* ── Worked Example Switcher & Collapsed Layout ── */
-  .example-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 14px auto 0; max-width: 920px; }
+  .filter-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--rule); background: var(--well); }
+  .filter-pill {
+    border: 1px solid var(--rule); background: var(--card); color: var(--ink2); border-radius: 4px;
+    padding: 3px 9px; font: 600 11px var(--mono); transition: all .12s;
+  }
+  .filter-pill.on { border-color: var(--blue); background: var(--blue-w); color: var(--blue-d); }
+
+  .snippet-code {
+    display: block; margin-top: 4px; padding: 5px 8px; border-radius: 4px; background: var(--well);
+    border: 1px solid var(--rule); font: 400 11px/1.4 var(--mono); color: var(--cyan);
+    overflow-x: auto; max-width: 340px; white-space: nowrap;
+  }
+
+  /* ── Worked Example Switcher & 2-Column Layout ── */
+  .example-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 14px auto 0; max-width: 960px; }
   .ex-pill {
-    display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: 12px;
-    border: 1.5px solid var(--rule); background: var(--card); color: var(--ink2); font: 600 13px var(--sans);
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 8px;
+    border: 1px solid var(--rule); background: var(--card); color: var(--ink2); font: 600 12.5px var(--sans);
     transition: all .15s;
   }
-  .ex-pill:hover { border-color: var(--ink); color: var(--ink); }
+  .ex-pill:hover { border-color: var(--rule2); color: var(--ink); }
   .ex-pill.on { border-color: var(--blue); background: var(--blue-w); color: var(--blue-d); font-weight: 700; }
 
   /* ── Type roles ── */
-  .kicker { display: block; font: 800 10.5px/1.3 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--mute); }
-  .sub-k { font: 800 11px/1.3 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--mute); margin: 18px 0 8px; }
-  .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: spin .8s linear infinite; display: inline-block; }
-  .spinner.tiny { width: 13px; height: 13px; border-width: 2px; border-color: rgba(43,59,255,.25); border-top-color: var(--blue); }
-  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; flex-shrink: 0; }
+  .kicker { display: block; font: 600 10px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+  .sub-k { font: 600 10.5px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); margin: 16px 0 8px; }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; animation: spin .75s linear infinite; display: inline-block; }
+  .spinner.tiny { width: 12px; height: 12px; border-width: 2px; border-color: rgba(59,91,255,.25); border-top-color: var(--blue); }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; flex-shrink: 0; }
   .live-dot.gold { background: var(--gold); }
 
-  /* ── Compact Audit Progress Bar ── */
-  .press { max-width: 780px; margin: 16px auto 0; background: var(--card); border: 1px solid var(--rule); border-radius: 14px; padding: 12px 16px; }
-  .press-bar { height: 4px; border-radius: 2px; background: var(--rule2); overflow: hidden; }
-  .press-bar > div { height: 100%; background: linear-gradient(90deg, var(--blue), var(--green)); transition: width .45s linear; }
-  .press-status { margin-top: 8px; font: 600 12px var(--mono); color: var(--ink2); display: flex; justify-content: space-between; align-items: center; }
-
-  /* ── Worked Example 2-Column Grid ── */
-  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; align-items: start; margin-top: 22px; }
-  .col-l { grid-column: span 7; min-width: 0; }
+  /* ── Master-Detail 12-Col Grid ── */
+  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: start; margin-top: 20px; }
+  .col-l { grid-column: span 7; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
   .col-r { grid-column: span 5; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 
   /* ── Exhibit ── */
-  .exhibit { background: var(--card); border: 1px solid var(--rule); border-radius: 20px; overflow: hidden; box-shadow: 0 18px 40px -28px rgba(11,16,32,.25); }
-  .ex-head { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px 16px; padding: 16px 20px 14px; }
-  .caption { margin: 4px 0 0; font-size: 14px; color: var(--ink2); line-height: 1.45; }
+  .exhibit { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+  .ex-head { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px 16px; padding: 14px 18px 12px; }
+  .caption { margin: 4px 0 0; font-size: 13.5px; color: var(--ink2); line-height: 1.45; }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; padding: 4px 10px; background: var(--paper); border: 1px solid var(--rule); border-radius: 999px; white-space: nowrap; color: var(--ink); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; padding: 3px 8px; background: var(--well); border: 1px solid var(--rule); border-radius: 4px; white-space: nowrap; color: var(--ink2); }
   .lenses { display: flex; flex-wrap: wrap; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
-  .lens { flex: 1 1 160px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 10px; background: var(--card); border: 0; border-right: 1px solid var(--rule); font: 700 12.5px var(--sans); color: var(--mute); transition: background .15s, color .15s; }
+  .lens { flex: 1 1 160px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 10px; background: var(--card); border: 0; border-right: 1px solid var(--rule); font: 600 12.5px var(--sans); color: var(--ink2); transition: background .15s, color .15s; }
   .lens:last-child { border-right: 0; }
-  .lens:hover { background: var(--paper); color: var(--ink); }
-  .patchbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 18px; padding: 10px 18px; border-bottom: 1px solid var(--rule); }
-  .seg { display: inline-flex; background: var(--paper); border-radius: 8px; padding: 3px; }
-  .seg button { border: 0; background: none; padding: 5px 11px; border-radius: 6px; font: 700 11.5px var(--sans); color: var(--mute); }
-  .seg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(11,16,32,.12); }
+  .lens:hover { background: var(--elevated); color: var(--ink); }
+  .patchbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 18px; padding: 10px 16px; border-bottom: 1px solid var(--rule); }
+  .seg { display: inline-flex; background: var(--well); border: 1px solid var(--rule); border-radius: 6px; padding: 2px; }
+  .seg button { border: 0; background: none; padding: 5px 10px; border-radius: 4px; font: 600 11.5px var(--sans); color: var(--ink2); }
+  .seg button.on { background: var(--elevated); color: var(--ink); }
   .swipe { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 180px; font: 700 11.5px var(--sans); }
-  .range { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; background: var(--rule); flex: 1; width: 100%; }
-  .range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--blue); border: 3px solid #fff; box-shadow: 0 2px 6px rgba(11,16,32,.3); cursor: pointer; }
-  .stagewrap { padding: 18px 12px 14px; transition: background .3s; }
-  .ex-foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 12px 20px; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--ink2); }
+  .range { -webkit-appearance: none; appearance: none; height: 5px; border-radius: 999px; background: var(--rule2); flex: 1; width: 100%; }
+  .range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--blue); border: 2px solid #fff; cursor: pointer; }
+  .stagewrap { padding: 16px 12px 14px; transition: background .3s; }
+  .ex-foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 10px 18px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--ink2); }
 
-  /* ── Tables & Badges ── */
-  .cta-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .cta-table th { text-align: left; padding: 10px 12px; border-bottom: 1.5px solid var(--ink); font: 700 10.5px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--mute); background: var(--paper); }
+  /* ── Tables & Telemetry Badges ── */
+  .cta-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .cta-table th { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule2); font: 600 10px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--mute); background: var(--well); }
   .cta-table td { padding: 10px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
-  .badge-pill { display: inline-flex; align-items: center; gap: 5px; font: 700 10px var(--mono); padding: 3px 8px; border-radius: 999px; text-transform: uppercase; }
-  .badge-pill.err { background: var(--red-w); color: var(--red-d); }
-  .badge-pill.warn { background: var(--gold-w); color: var(--gold-d); }
-  .badge-pill.ok { background: var(--green-w); color: var(--green-d); }
-  .badge-pill.blue { background: var(--blue-w); color: var(--blue-d); }
+  .cta-table tr:hover td { background: rgba(59, 91, 255, 0.04); }
+  .badge-pill { display: inline-flex; align-items: center; gap: 5px; font: 600 10px/1 var(--mono); padding: 4px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: .04em; border: 1px solid transparent; }
+  .badge-pill.err { background: var(--red-w); color: var(--red-d); border-color: rgba(239,68,68,.28); }
+  .badge-pill.warn { background: var(--gold-w); color: var(--gold-d); border-color: rgba(245,158,11,.28); }
+  .badge-pill.ok { background: var(--green-w); color: var(--green-d); border-color: rgba(16,185,129,.28); }
+  .badge-pill.blue { background: var(--blue-w); color: var(--blue-d); border-color: rgba(59,91,255,.32); }
+  .badge-pill.cyan { background: var(--cyan-w); color: var(--cyan); border-color: rgba(6,182,212,.28); }
 
-  /* ── Cards & Diffs ── */
-  .story { background: var(--card); border: 1px solid var(--rule); border-radius: 18px; overflow: hidden; }
-  .story-head { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 20px; border: 0; background: var(--paper); color: var(--ink); text-align: left; }
-  .story-title { display: block; margin-top: 3px; font: 700 18px/1.2 var(--display); color: var(--ink); }
-  .story-body { padding: 18px 20px; }
-  .sev { font: 700 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 5px 9px; border-radius: 999px; background: var(--red); color: #fff; white-space: nowrap; }
-  .sev.blue { background: var(--blue); } .sev.green { background: var(--green-d); } .sev.gold { background: var(--gold); color: var(--ink); }
+  /* ── Cards & Code Diffs ── */
+  .story { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+  .story-head { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border: 0; border-bottom: 1px solid var(--rule); background: var(--card); color: var(--ink); text-align: left; }
+  .story-title { display: block; margin-top: 3px; font: 700 15.5px/1.25 var(--sans); color: var(--ink); }
+  .story-body { padding: 14px 16px; }
+  .sev { font: 700 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 5px 8px; border-radius: 4px; background: var(--red); color: #fff; white-space: nowrap; }
+  .sev.blue { background: var(--blue); } .sev.green { background: var(--green); color: #052e1c; } .sev.gold { background: var(--gold); color: #0B1020; }
 
-  .diff { border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; background: #FBFBFE; }
-  .diff-head { display: flex; justify-content: space-between; gap: 10px; padding: 8px 12px; background: var(--paper); border-bottom: 1px solid var(--rule); font-size: 11px; color: var(--mute); }
+  .diff { border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--well); }
+  .diff-head { display: flex; justify-content: space-between; gap: 10px; padding: 7px 12px; background: var(--elevated); border-bottom: 1px solid var(--rule); font-size: 11px; color: var(--ink2); }
   .diff-scroll { overflow-x: auto; }
   .diff-inner { min-width: max-content; padding: 6px 0; font: 400 12px/1.7 var(--mono); }
-  .dl { display: flex; } .dl.add { background: rgba(0,163,108,.13); } .dl.del { background: rgba(240,67,31,.10); }
-  .dl .sign { width: 28px; flex-shrink: 0; text-align: center; font-weight: 800; user-select: none; }
+  .dl { display: flex; } .dl.add { background: rgba(16,185,129,.12); } .dl.del { background: rgba(239,68,68,.12); }
+  .dl .sign { width: 26px; flex-shrink: 0; text-align: center; font-weight: 700; user-select: none; }
   .dl.add .sign { color: var(--green-d); } .dl.del .sign { color: var(--red-d); }
   .dl .code { white-space: pre; padding-right: 16px; color: var(--ink); }
   .dl.ctx .code { color: var(--mute); }
 
-  .merge-btn { width: 100%; padding: 14px 16px; border: 0; border-radius: 12px; background: var(--green-d); color: #fff; font: 800 14.5px var(--sans); display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s; }
-  .merge-btn:hover:not(:disabled) { background: #008F5F; }
-  .merge-btn.blue-btn { background: var(--blue); }
-  .merge-btn.blue-btn:hover:not(:disabled) { background: var(--blue-d); }
-  .merged { display: flex; align-items: center; gap: 14px; padding: 14px; border: 1.5px solid var(--green); border-radius: 12px; background: var(--green-w); }
-  .stamp { flex-shrink: 0; border: 2px solid var(--green-d); border-radius: 6px; padding: 4px 9px; font: 800 12px/1 var(--mono); text-transform: uppercase; color: var(--green-d); }
+  .merge-btn { width: 100%; padding: 11px 14px; border: 0; border-radius: 7px; background: var(--green); color: #052e1c; font: 700 13.5px var(--sans); display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity .15s; }
+  .merge-btn:hover:not(:disabled) { opacity: 0.92; }
+  .merge-btn.blue-btn { background: var(--blue); color: #fff; }
+  .merged { display: flex; align-items: center; gap: 14px; padding: 12px; border: 1px solid var(--green); border-radius: 8px; background: var(--green-w); }
+  .stamp { flex-shrink: 0; border: 1.5px solid var(--green-d); border-radius: 4px; padding: 4px 8px; font: 700 11px/1 var(--mono); text-transform: uppercase; color: var(--green-d); }
 
-  /* ── Voice panel ── */
-  .vpanel { width: 100%; height: 100%; display: flex; gap: 14px; padding: 16px; background: #fff; border: 1px solid #F0D98A; border-radius: 16px; overflow: hidden; }
-  .vtag { display: flex; align-items: center; gap: 8px; font: 700 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gold-d); }
-  .bubble { padding: 8px 11px; border-radius: 10px; background: var(--paper); }
-  .bubble.user { background: var(--gold-w); }
-  .who { font: 600 10px var(--mono); color: var(--mute); margin-bottom: 2px; }
-  .said { font-size: 13px; line-height: 1.45; color: var(--ink); }
-  .mapped { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; background: var(--blue-w); color: var(--blue-d); font: 500 11px var(--mono); }
-  .snippet { margin-top: auto; padding: 10px; border-radius: 10px; background: var(--ink); }
+  /* ── Voice panel (Light surface preserved for contrast inside mock) ── */
+  .vpanel { width: 100%; height: 100%; display: flex; gap: 14px; padding: 16px; background: #fff; border: 1px solid #F0D98A; border-radius: 16px; overflow: hidden; color: #0B1020; }
+  .vtag { display: flex; align-items: center; gap: 8px; font: 700 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #8A5F00; }
+  .bubble { padding: 8px 11px; border-radius: 10px; background: #F6F7FB; }
+  .bubble.user { background: #FFF0C2; }
+  .who { font: 600 10px var(--mono); color: #636A82; margin-bottom: 2px; }
+  .said { font-size: 13px; line-height: 1.45; color: #0B1020; }
+  .mapped { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; background: #E3E7FF; color: #1B27C7; font: 500 11px var(--mono); }
+  .snippet { margin-top: auto; padding: 10px; border-radius: 10px; background: #0B1020; }
   .snippet-k { font: 600 9.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #98A1B8; margin-bottom: 4px; }
   .snippet code { display: block; font: 400 10.5px/1.45 var(--mono); color: #9AE6B4; word-break: break-all; }
-  .mini-btn { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 4px 10px; border: 0; border-radius: 7px; background: var(--gold); color: var(--ink); font: 700 10.5px var(--mono); }
+  .mini-btn { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 4px 10px; border: 0; border-radius: 7px; background: #FFB400; color: #0B1020; font: 700 10.5px var(--mono); }
   .orb-wrap { position: relative; width: 68px; height: 68px; flex-shrink: 0; margin: 4px 0; }
   .orb-wrap.small { width: 44px; height: 44px; margin: 0; }
-  .orb { position: absolute; inset: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--ink); background: radial-gradient(circle at 30% 28%, #FFF1B8, #FFB400 50%, #E08A00); }
-  .orb-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--gold); animation: ring 2.2s ease-out infinite; }
+  .orb { position: absolute; inset: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #0B1020; background: radial-gradient(circle at 30% 28%, #FFF1B8, #FFB400 50%, #E08A00); }
+  .orb-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #FFB400; animation: ring 2.2s ease-out infinite; }
   .orb-ring.r2 { animation-delay: 1.1s; }
   .wave-bar { display: block; width: 3px; height: 100%; border-radius: 2px; background: linear-gradient(180deg, #FFB400, #F0431F); transform-origin: center; animation: wave .9s ease-in-out infinite alternate; }
   .caret { display: inline-block; width: 6px; height: 13px; margin-left: 2px; vertical-align: -2px; background: var(--blue); animation: blink .9s steps(1) infinite; }
   .scanline { position: absolute; overflow: hidden; pointer-events: none; z-index: 55; border-radius: 40px; }
-  .scanline i { display: block; position: absolute; left: 0; right: 0; height: 80px; background: linear-gradient(180deg, transparent, rgba(43,59,255,.3)); border-bottom: 3px solid var(--blue); animation: scan 1.1s linear infinite; }
+  .scanline i { display: block; position: absolute; left: 0; right: 0; height: 80px; background: linear-gradient(180deg, transparent, rgba(59,91,255,.3)); border-bottom: 3px solid var(--blue); animation: scan 1.1s linear infinite; }
   .ripple { position: absolute; left: 4px; top: 4px; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2.5px solid var(--blue); animation: rip .9s ease-out both; }
   .sim-spin { animation: spin 1s linear infinite; }
 
-  /* ── Modals (Connect GitHub Repo & Pricing/Packaging) ── */
-  .modal-backdrop { position: fixed; inset: 0; background: rgba(11,16,32,.55); backdrop-filter: blur(4px); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
-  .modal-card { background: var(--card); border: 1.5px solid var(--ink); border-radius: 20px; max-width: 680px; width: 100%; padding: 26px; box-shadow: 0 30px 70px rgba(11,16,32,.35); max-height: 90vh; overflow-y: auto; }
+  /* ── Modals ── */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(4,6,12,.72); backdrop-filter: blur(6px); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal-card { background: var(--elevated); border: 1px solid var(--rule2); border-radius: 12px; max-width: 680px; width: 100%; padding: 24px; box-shadow: 0 24px 64px rgba(0,0,0,.55); max-height: 90vh; overflow-y: auto; }
 
   /* ── Compact Footer ── */
-  .colophon { margin-top: 48px; padding-block: 24px; background: var(--ink); color: #fff; font-size: 12.5px; }
+  .colophon { margin-top: 44px; padding-block: 18px; background: var(--well); border-top: 1px solid var(--rule); color: var(--ink2); font-size: 12px; }
   .colo-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 24px; }
-  .colo-links { display: flex; flex-wrap: wrap; gap: 14px; color: #A3AAC2; }
-  .colo-links button, .colo-links a { background: none; border: 0; color: #C7CDFF; font: 500 12px var(--mono); text-decoration: none; padding: 0; }
-  .colo-links button:hover, .colo-links a:hover { color: #fff; text-decoration: underline; }
+  .colo-links { display: flex; flex-wrap: wrap; gap: 14px; }
+  .colo-links button, .colo-links a { background: none; border: 0; color: var(--blue-d); font: 500 11.5px var(--mono); text-decoration: none; padding: 0; }
+  .colo-links button:hover, .colo-links a:hover { color: var(--ink); text-decoration: underline; }
 
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes blink { 50% { opacity: 0; } }
-  @keyframes rise { from { transform: translateY(8px); opacity: .2; } to { transform: none; opacity: 1; } }
+  @keyframes rise { from { transform: translateY(6px); opacity: .25; } to { transform: none; opacity: 1; } }
   @keyframes boxin { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
   @keyframes ring { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(1.8); opacity: 0; } }
   @keyframes wave { from { transform: scaleY(.15); } to { transform: scaleY(1); } }
@@ -1081,134 +1188,349 @@ function Exhibit({ sc, mode, setMode, audit, host }) {
   );
 }
 
-/* ═════════════ Calm Live URL Report (PageSpeed / Sentry Inspired) ═════════════ */
+/* ═════════════ Honest Pending & Unverified Error States (T-306) ═════════════ */
+function PendingLiveAuditCard({ url, startedAt, onCancel }) {
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsedMs(Math.max(0, Date.now() - (startedAt || Date.now())));
+    }, 100);
+    return () => clearInterval(id);
+  }, [startedAt]);
+
+  return (
+    <section className="pending-card" aria-live="polite" aria-label="Live Audit In Progress">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span className="spinner tiny" />
+          <span className="badge-pill blue">AUDIT PENDING · WAITING FOR /API/AUDIT</span>
+          <span className="badge-pill cyan">STATIC HTML ONLY</span>
+          <span className="mono tnum" style={{ fontSize: 12, color: "var(--ink2)" }}>
+            {(elapsedMs / 1000).toFixed(1)}s elapsed
+          </span>
+        </div>
+        <button type="button" onClick={onCancel} className="btn-act">
+          Cancel
+        </button>
+      </div>
+      <div>
+        <div className="kicker">Submitted URL (Bound to Request)</div>
+        <div className="mono" style={{ fontSize: 13.5, color: "var(--ink)", marginTop: 4, wordBreak: "break-all" }}>
+          GET {url}
+        </div>
+        <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "var(--ink2)" }}>
+          Fetching live public HTML from the server. No heuristic client score or estimate is shown before the server response settles.
+        </p>
+      </div>
+      <div className="shimmer-grid" aria-hidden="true">
+        <div className="shimmer-box" />
+        <div className="shimmer-box" />
+        <div className="shimmer-box" />
+        <div className="shimmer-box" />
+      </div>
+    </section>
+  );
+}
+
+function UnverifiedErrorCard({ url, error, onRetry }) {
+  return (
+    <section className="calm-report" aria-label="Unverified Audit Error">
+      <div className="story" style={{ borderColor: "var(--red)", background: "var(--card)" }}>
+        <div className="story-head" style={{ background: "var(--red-w)", cursor: "default" }}>
+          <div>
+            <span className="kicker" style={{ color: "var(--red-d)" }}>UNVERIFIED · SERVER AUDIT FAILED</span>
+            <span className="story-title">Could not complete live static HTML audit</span>
+          </div>
+          <span className="badge-pill err">UNVERIFIED</span>
+        </div>
+        <div className="story-body" style={{ display: "grid", gap: 10 }}>
+          <div className="mono" style={{ fontSize: 12.5, color: "var(--ink)" }}>{url}</div>
+          <p style={{ margin: 0, fontSize: 13.5, color: "var(--ink2)" }}>
+            {error || "Network or API failure while contacting /api/audit. Pramana refuses to substitute a client-side heuristic estimate as a live scrape."}
+          </p>
+          <div>
+            <button type="button" onClick={onRetry} className="btn-act primary">
+              <Icon n="rotate" size={13} /> Retry Live Audit
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═════════════ Stitch Obsidian Telemetry Live URL Report (T-305..T-310) ═════════════ */
 function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
   const [copiedFix, copyFix] = useCopy();
   const [showTechJson, setShowTechJson] = useState(false);
+  const [evidenceFilter, setEvidenceFilter] = useState("ALL");
 
   const dom = customAudit.scrapedDom || {};
   const finding = customAudit.customFinding || {};
+  const telemetry = customAudit.telemetry || {};
   const elements = dom.interactiveElements || [];
+  const findingsList = finding.findings || [];
   const a11y = dom.accessibilityMetrics || {};
   const forms = dom.formsAndInputs || {};
-  const limitation = finding.auditLimitation || dom.auditLimitation || { limited: false };
+  const limitation = finding.auditLimitation || dom.auditLimitation || { limited: false, code: "NONE", signals: [] };
 
-  const score = finding.domHealthScore ?? 94;
-  const sev = finding.severity || "PASS";
+  const isUnverified = Boolean(limitation.limited || finding.severity === "UNVERIFIED");
+  const score = typeof finding.domHealthScore === "number" ? finding.domHealthScore : null;
+  const sev = finding.severity || (isUnverified ? "UNVERIFIED" : "PASS");
+  const remediationEligible = Boolean(finding.remediationEligible && !isUnverified);
   const diffLines = finding.diffLines || [];
   const rawFix = diffLines.map((l) => `${l.t === "add" ? "+ " : l.t === "del" ? "- " : "  "}${l.c}`).join("\n");
 
+  const filteredElements = elements.filter((el) => {
+    if (evidenceFilter === "FACT") return (el.claimType || "OBSERVED_FACT") === "OBSERVED_FACT";
+    if (evidenceFilter === "INFERENCE") return el.claimType === "INFERENCE";
+    if (evidenceFilter === "ISSUES") return el.auditStatus !== "PASS";
+    return true;
+  });
+
+  const sevTone =
+    sev === "PASS" ? "ok" : sev === "LOW" ? "blue" : sev === "UNVERIFIED" || sev === "CRITICAL" ? "err" : "warn";
+
+  const providerCallsCount = telemetry.providerCallCount ?? 0;
+  const tokenText = telemetry.measuredTokenUsage?.available
+    ? `${telemetry.measuredTokenUsage.inputTokens ?? "?"} in / ${telemetry.measuredTokenUsage.outputTokens ?? "?"} out`
+    : "Not measured (0 LLM calls)";
+
   return (
     <section className="calm-report" aria-label="Live URL Audit Report">
-      {/* Top Action & Verdict Bar */}
+      {/* 1. Top Verdict Banner */}
       <div className="report-bar">
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span className="badge-pill blue">LIVE PUBLIC HTML</span>
-            <span className={"badge-pill " + (sev === "PASS" ? "ok" : sev === "LOW" ? "blue" : "warn")}>
-              Verdict: {sev}
-            </span>
-            <span className="mono" style={{ fontSize: 12, color: "var(--mute)" }}>
-              HTTP {customAudit.httpStatus || 200} · {customAudit.latencyMs}ms · {dom.htmlKilobytes || 1.2} KB
+        <div style={{ minWidth: 0, flex: "1 1 420px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span className="badge-pill cyan">STATIC HTML ONLY</span>
+            <span className="badge-pill blue">{finding.surfaceCategory || "Public Surface"}</span>
+            <span className={"badge-pill " + sevTone}>Verdict: {sev}</span>
+            <span className="mono tnum" style={{ fontSize: 11.5, color: "var(--ink2)" }}>
+              HTTP {customAudit.httpStatus ?? 0} · {customAudit.latencyMs}ms · {dom.htmlKilobytes ?? 0} KB
             </span>
           </div>
-          <h2 style={{ margin: "6px 0 2px", font: "700 24px/1.2 var(--display)", color: "var(--ink)" }}>
+          <h2 style={{ margin: "8px 0 3px", font: "700 20px/1.25 var(--display)", color: "var(--ink)" }}>
             {dom.pageTitle || customAudit.hostname}
           </h2>
-          <div className="mono" style={{ fontSize: 12, color: "var(--mute)" }}>
-            {customAudit.targetUrl} · {finding.surfaceCategory}
+          <div className="mono" style={{ fontSize: 11.5, color: "var(--mute)", wordBreak: "break-all" }}>
+            GET {customAudit.targetUrl} · {a11y.estimatedDomNodes ?? 0} static nodes · {a11y.totalScripts ?? 0} scripts
           </div>
         </div>
         <div className="action-group">
-          <button type="button" onClick={() => copyFix(rawFix)} className="btn-act primary">
-            <Icon n={copiedFix ? "check" : "copy"} size={14} />
-            {copiedFix ? "Copied Fix ✓" : "Copy Suggested Fix"}
+          <button
+            type="button"
+            disabled={!remediationEligible}
+            onClick={() => copyFix(rawFix)}
+            className="btn-act primary"
+            title={remediationEligible ? "Copy evidence-grounded snippet" : "Remediation suppressed for unverified or clean static scan"}
+          >
+            <Icon n={copiedFix ? "check" : "copy"} size={13} />
+            {copiedFix ? "Copied Snippet ✓" : "Copy Fix Snippet"}
           </button>
           <button type="button" onClick={onOpenShare} className="btn-act">
-            <Icon n="link" size={14} /> Share Report
+            <Icon n="link" size={13} /> Share Report
           </button>
           <button type="button" onClick={onOpenConnectRepo} className="btn-act">
-            <Icon n="merge" size={14} /> Connect GitHub Repo
+            <Icon n="merge" size={13} /> Connect Repo
           </button>
         </div>
       </div>
 
-      {/* Partial Visibility / Auth / SPA Warning if applicable */}
+      {/* Fail-Closed Scope Limitation Banner (T-305) */}
       {limitation.limited && (
-        <div className="story" style={{ borderColor: "var(--red)", background: "var(--red-w)", padding: "14px 18px" }}>
-          <div className="kicker" style={{ color: "var(--red-d)" }}>Scope Limitation · {limitation.code}</div>
-          <div style={{ fontSize: 13.5, color: "var(--ink)", marginTop: 4 }}>
-            <b>{limitation.title}:</b> {limitation.explanation}
+        <div className="story" style={{ borderColor: "var(--gold)", background: "var(--gold-w)" }}>
+          <div style={{ padding: "14px 18px", display: "grid", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+              <span className="kicker" style={{ color: "var(--gold-d)" }}>
+                FAIL-CLOSED SCOPE LIMITATION · {limitation.code}
+              </span>
+              <span className="badge-pill warn">CLEAN PASS &amp; FIX SUPPRESSED</span>
+            </div>
+            <div style={{ fontSize: 13.5, color: "var(--ink)" }}>
+              <b>{limitation.title}:</b> {limitation.explanation}
+            </div>
+            {Array.isArray(limitation.signals) && limitation.signals.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
+                {limitation.signals.map((sig) => (
+                  <span key={sig} className="chip mono" style={{ fontSize: 10.5 }}>{sig}</span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* 4-Metric Vital Strip */}
+      {/* 2. 4-Card Vital Telemetry Strip */}
       <div className="vitals-strip">
         <div className="vital-box">
-          <span className="kicker">DOM &amp; A11y Readiness</span>
-          <div className={"vital-val " + (score >= 90 ? "ok" : score >= 75 ? "warn" : "err")}>{score}<span style={{ fontSize: 16, fontWeight: 500 }}>/100</span></div>
-          <span style={{ fontSize: 12, color: "var(--mute)", marginTop: 4 }}>{a11y.estimatedDomNodes || 14} static DOM nodes parsed</span>
+          <span className="kicker">Static HTML Readiness</span>
+          {score === null ? (
+            <>
+              <div className="vital-val warn" style={{ fontSize: 22 }}>UNVERIFIED</div>
+              <span style={{ fontSize: 11.5, color: "var(--ink2)" }}>
+                Numeric score suppressed ({limitation.code})
+              </span>
+            </>
+          ) : (
+            <>
+              <div className={"vital-val " + (score >= 90 ? "ok" : score >= 75 ? "warn" : "err")}>
+                {score}<span style={{ fontSize: 14, fontWeight: 500, color: "var(--mute)" }}>/100</span>
+              </div>
+              <div className="micro-bar">
+                <div style={{ width: `${score}%`, background: score >= 90 ? "var(--green)" : score >= 75 ? "var(--gold)" : "var(--red)" }} />
+              </div>
+              <span style={{ fontSize: 11.5, color: "var(--ink2)" }}>
+                {a11y.estimatedDomNodes ?? 0} static nodes · Static HTML only
+              </span>
+            </>
+          )}
         </div>
+
         <div className="vital-box">
           <span className="kicker">Interactive Controls</span>
-          <div className="vital-val">{elements.length - (finding.warnCount || 0)}<span style={{ fontSize: 16, fontWeight: 500 }}>/{elements.length} pass</span></div>
-          <span style={{ fontSize: 12, color: "var(--mute)", marginTop: 4 }}>{finding.warnCount || 0} controls missing ID/ARIA</span>
+          <div className="vital-val">
+            {elements.length - (finding.warnCount || 0)}
+            <span style={{ fontSize: 14, fontWeight: 500, color: "var(--mute)" }}>/{elements.length} pass</span>
+          </div>
+          <span style={{ fontSize: 11.5, color: "var(--ink2)" }}>
+            {finding.warnCount || 0} warnings in parsed static markup
+          </span>
         </div>
+
         <div className="vital-box">
-          <span className="kicker">Form &amp; Image Labels</span>
-          <div className="vital-val">{(forms.unlabeledInputsCount || 0) + (a11y.imagesMissingAlt || 0)}<span style={{ fontSize: 16, fontWeight: 500 }}> flags</span></div>
-          <span style={{ fontSize: 12, color: "var(--mute)", marginTop: 4 }}>
+          <span className="kicker">Form &amp; Image A11y Flags</span>
+          <div className={"vital-val " + ((forms.unlabeledInputsCount || 0) + (a11y.imagesMissingAlt || 0) > 0 ? "warn" : "ok")}>
+            {(forms.unlabeledInputsCount || 0) + (a11y.imagesMissingAlt || 0)}
+            <span style={{ fontSize: 14, fontWeight: 500, color: "var(--mute)" }}> flags</span>
+          </div>
+          <span style={{ fontSize: 11.5, color: "var(--ink2)" }}>
             {forms.unlabeledInputsCount || 0} unlabeled inputs · {a11y.imagesMissingAlt || 0} missing alt
           </span>
         </div>
+
         <div className="vital-box">
-          <span className="kicker">Revenue Impact</span>
-          <div className="vital-val" style={{ fontSize: 22, color: "var(--mute)" }}>Not Applicable</div>
-          <span style={{ fontSize: 12, color: "var(--mute)", marginTop: 4 }}>
-            Public HTML mode never fabricates $ or % conversion numbers
-          </span>
+          <span className="kicker">Auditable Telemetry (T-309)</span>
+          <div className="mono" style={{ fontSize: 11.5, color: "var(--ink)", display: "grid", gap: 3 }}>
+            <div>Provider Calls: <b style={{ color: "var(--cyan)" }}>{providerCallsCount}</b> ({customAudit.activeModel})</div>
+            <div>Est. Marginal: <b>${telemetry.estimatedMarginalCostUsd ?? 0.024}</b> <span style={{ color: "var(--mute)" }}>(amortized)</span></div>
+            <div>Tokens: <span style={{ color: "var(--ink2)" }}>{tokenText}</span></div>
+            <div style={{ color: "var(--mute)", fontSize: 10.5 }}>Revenue Impact: N/A (Static HTML)</div>
+          </div>
         </div>
       </div>
 
-      {/* Findings & Suggested Fix Side-by-Side */}
+      {/* 3. Master-Detail 2-Column Evidence & Remediation Workspace */}
       <div className="grid" style={{ marginTop: 0 }}>
         <div className="col-l">
+          {/* Evidence-Grounded Findings Card (T-307) */}
+          {findingsList.length > 0 && (
+            <div className="story">
+              <div className="story-head" style={{ cursor: "default" }}>
+                <div>
+                  <span className="kicker">Observed Evidence (T-307 · Static HTML Only)</span>
+                  <span className="story-title">Grounded Findings ({findingsList.length})</span>
+                </div>
+                <span className="badge-pill cyan">OBSERVED vs INFERENCE</span>
+              </div>
+              <div className="story-body" style={{ display: "grid", gap: 10 }}>
+                {findingsList.map((f) => (
+                  <div
+                    key={f.id}
+                    style={{
+                      padding: "11px 13px",
+                      borderRadius: 8,
+                      border: "1px solid var(--rule)",
+                      background: "var(--well)",
+                      display: "grid",
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13.5, color: "var(--ink)" }}>{f.title}</span>
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                        <span className={"badge-pill " + (f.claimType === "OBSERVED_FACT" ? "ok" : "warn")}>
+                          {f.claimType === "OBSERVED_FACT" ? "OBSERVED FACT" : "INFERENCE"}
+                        </span>
+                        <span className="badge-pill cyan">{f.evidenceSource}</span>
+                        <span className="chip mono" style={{ fontSize: 10 }}>role={f.role}</span>
+                      </div>
+                    </div>
+                    {f.markupSnippet && <code className="snippet-code" style={{ maxWidth: "100%" }}>{f.markupSnippet}</code>}
+                    <div style={{ fontSize: 12, color: "var(--ink2)" }}>
+                      {f.limitationNote} <span className="mono" style={{ color: "var(--mute)" }}>· diag: {f.diagnosticSelector}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* High-Density Interactive Controls Table */}
           <div className="story">
             <div className="story-head" style={{ cursor: "default" }}>
               <div>
-                <span className="kicker">What We Checked</span>
-                <span className="story-title">Interactive Controls &amp; Accessibility</span>
+                <span className="kicker">Role &amp; Name Identity (INV-03) · Selectors Diagnostic Only</span>
+                <span className="story-title">Inspected Static Controls</span>
               </div>
-              <span className="chip mono">{elements.length} controls inspected</span>
+              <span className="chip mono">{elements.length} controls</span>
+            </div>
+            <div className="filter-row" role="group" aria-label="Filter controls">
+              {[
+                ["ALL", `All (${elements.length})`],
+                ["FACT", `Observed Fact (${elements.filter((e) => (e.claimType || "OBSERVED_FACT") === "OBSERVED_FACT").length})`],
+                ["INFERENCE", `Inference (${elements.filter((e) => e.claimType === "INFERENCE").length})`],
+                ["ISSUES", `Warnings (${elements.filter((e) => e.auditStatus !== "PASS").length})`],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setEvidenceFilter(id)}
+                  className={"filter-pill" + (evidenceFilter === id ? " on" : "")}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
             <div className="story-body" style={{ padding: 0 }}>
               <div style={{ overflowX: "auto" }}>
                 <table className="cta-table">
                   <thead>
                     <tr>
-                      <th>Selector</th>
-                      <th>Label</th>
-                      <th>Status</th>
-                      <th>Finding</th>
+                      <th>Role &amp; Accessible Name</th>
+                      <th>Status &amp; Claim</th>
+                      <th>Observed Evidence / Diagnostic</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {elements.length === 0 ? (
-                      <tr><td colSpan={4} className="mono" style={{ color: "var(--mute)" }}>No interactive buttons/links found in static HTML.</td></tr>
+                    {filteredElements.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="mono" style={{ color: "var(--mute)" }}>
+                          No static HTML controls match the current filter.
+                        </td>
+                      </tr>
                     ) : (
-                      elements.slice(0, 6).map((el, idx) => (
+                      filteredElements.slice(0, 8).map((el, idx) => (
                         <tr key={idx}>
-                          <td className="mono" style={{ fontSize: 11.5, color: "var(--blue-d)" }}>
-                            {el.id ? (el.id.startsWith("name=") ? `${el.tag}[${el.id}]` : `#${el.id}`) : el.className ? `${el.tag}.${el.className}` : `<${el.tag}>`}
-                          </td>
-                          <td style={{ fontWeight: 700 }}>{el.label}</td>
                           <td>
-                            <span className={"badge-pill " + (el.auditStatus === "CRITICAL" ? "err" : el.auditStatus === "WARN" ? "warn" : "ok")}>
-                              {el.auditStatus}
-                            </span>
+                            <div style={{ fontWeight: 700, color: "var(--ink)" }}>{el.accessibleName || el.label}</div>
+                            <div className="mono" style={{ fontSize: 11, color: "var(--blue-d)", marginTop: 2 }}>
+                              role=&quot;{el.role || el.tag}&quot; · {el.diagnosticSelector || `<${el.tag}>`}
+                            </div>
                           </td>
-                          <td style={{ fontSize: 12.5, color: "var(--ink2)" }}>{el.auditReason}</td>
+                          <td>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+                              <span className={"badge-pill " + (el.auditStatus === "CRITICAL" ? "err" : el.auditStatus === "WARN" ? "warn" : "ok")}>
+                                {el.auditStatus}
+                              </span>
+                              <span className="mono" style={{ fontSize: 10, color: "var(--mute)" }}>
+                                {el.claimType || "OBSERVED_FACT"}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ fontSize: 12, color: "var(--ink2)" }}>
+                            <div>{el.auditReason}</div>
+                            {el.markupSnippet && <code className="snippet-code">{el.markupSnippet}</code>}
+                          </td>
                         </tr>
                       ))
                     )}
@@ -1220,19 +1542,24 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
         </div>
 
         <div className="col-r">
+          {/* Evidence-Grounded Fix Snippet Card */}
           <div className="story">
             <div className="story-head" style={{ cursor: "default" }}>
               <div>
-                <span className="kicker">Suggested Fix</span>
-                <span className="story-title">Copyable HTML / ARIA Snippet</span>
+                <span className="kicker">Evidence-Grounded Remediation</span>
+                <span className="story-title">
+                  {remediationEligible ? "Copyable HTML / ARIA Diff" : isUnverified ? "Remediation Suppressed (Unverified)" : "No Static Fix Needed"}
+                </span>
               </div>
-              <span className="badge-pill blue">No Repo Connected</span>
+              <span className={"badge-pill " + (remediationEligible ? "blue" : isUnverified ? "warn" : "ok")}>
+                {remediationEligible ? "No Repo Connected" : isUnverified ? "Fail-Closed" : "Clean Census"}
+              </span>
             </div>
             <div className="story-body">
               <div className="diff">
                 <div className="diff-head">
                   <span className="mono">{finding.diffFile || "suggested-snippet.html"}</span>
-                  <span className="mono">Public HTML Suggestion</span>
+                  <span className="mono">{finding.remediationTargetFindingId || finding.remediationType}</span>
                 </div>
                 <div className="diff-scroll">
                   <div className="diff-inner">
@@ -1245,34 +1572,48 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
                   </div>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-                <button type="button" onClick={() => copyFix(rawFix)} className="merge-btn blue-btn" style={{ flex: 1 }}>
-                  <Icon n={copiedFix ? "check" : "copy"} size={15} />
-                  {copiedFix ? "Copied Snippet ✓" : "Copy Suggested Snippet"}
+              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  disabled={!remediationEligible}
+                  onClick={() => copyFix(rawFix)}
+                  className="merge-btn blue-btn"
+                  style={{ flex: 1 }}
+                >
+                  <Icon n={copiedFix ? "check" : "copy"} size={14} />
+                  {remediationEligible
+                    ? copiedFix ? "Copied Snippet ✓" : "Copy Evidence-Grounded Snippet"
+                    : isUnverified
+                    ? "Patch Suppressed — Unrendered Shell"
+                    : "No Static Fix Needed"}
                 </button>
               </div>
               <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--mute)" }}>
-                Want Pramana to open real GitHub Pull Requests on your repository?{" "}
-                <button type="button" onClick={onOpenConnectRepo} style={{ background: "none", border: 0, padding: 0, color: "var(--blue)", fontWeight: 700, textDecoration: "underline" }}>
+                Static HTML scans never claim layout overlap, computed contrast, or payment click verification.{" "}
+                <button
+                  type="button"
+                  onClick={onOpenConnectRepo}
+                  style={{ background: "none", border: 0, padding: 0, color: "var(--blue-d)", fontWeight: 700, textDecoration: "underline" }}
+                >
                   Connect GitHub App →
                 </button>
               </p>
             </div>
           </div>
 
-          {/* Single Collapsed Technical Drawer */}
+          {/* Collapsible Developer Diagnostics & Auditable Telemetry JSON */}
           <div className="story">
             <button type="button" onClick={() => setShowTechJson((v) => !v)} className="story-head">
               <div>
                 <span className="kicker">Developer Diagnostics</span>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>Raw JSON &amp; Server Scrape Metadata</span>
+                <span style={{ fontWeight: 700, fontSize: 13.5 }}>Raw Server JSON &amp; Telemetry Ledger</span>
               </div>
               <Icon n="chevron" size={16} style={{ transform: showTechJson ? "rotate(180deg)" : "none" }} />
             </button>
             {showTechJson && (
-              <div className="story-body" style={{ paddingTop: 0 }}>
-                <pre className="mono" style={{ margin: 0, padding: 12, background: "var(--paper)", borderRadius: 10, fontSize: 11.5, overflowX: "auto", color: "var(--ink)" }}>
-                  {JSON.stringify(finding, null, 2)}
+              <div className="story-body" style={{ paddingTop: 12 }}>
+                <pre className="mono" style={{ margin: 0, padding: 12, background: "var(--well)", border: "1px solid var(--rule)", borderRadius: 6, fontSize: 11, overflowX: "auto", color: "var(--ink)" }}>
+                  {JSON.stringify({ telemetry, auditLimitation: limitation, customFinding: finding }, null, 2)}
                 </pre>
               </div>
             )}
@@ -1465,14 +1806,21 @@ function ShareableReportView({ sc, site, customAudit, setPageView }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 18 }}>
           {[
-            ["Mode", isCustom ? "LIVE PUBLIC HTML" : "CONNECTED SANDBOX EXAMPLE"],
-            ["Target", isCustom ? customAudit.hostname : `${site.host} (Demo Store)`],
-            ["Verdict", isCustom ? `${finding.severity} (${finding.domHealthScore}/100 across ${dom.accessibilityMetrics?.estimatedDomNodes || 14} nodes)` : "Demo Blocker (3/3 reproduced)"],
-            ["Revenue Metric", isCustom ? "Not Applicable (Public HTML)" : `${sc.drop} (Modeled demo benchmark)`],
+            ["Mode", isCustom ? "STATIC HTML ONLY (PUBLIC)" : "CONNECTED SANDBOX EXAMPLE"],
+            ["Target", isCustom ? customAudit.targetUrl : `${site.host} (Demo Store)`],
+            [
+              "Verdict",
+              isCustom
+                ? typeof finding.domHealthScore === "number"
+                  ? `${finding.severity} (${finding.domHealthScore}/100 across ${dom.accessibilityMetrics?.estimatedDomNodes ?? 0} nodes)`
+                  : `${finding.severity || "UNVERIFIED"} (Score suppressed · ${finding.auditLimitation?.code || "LIMITED"})`
+                : "Demo Blocker (3/3 reproduced)",
+            ],
+            ["Revenue Metric", isCustom ? "Not Applicable (Static HTML)" : `${sc.drop} (Modeled demo benchmark)`],
           ].map(([k, v]) => (
-            <div key={k} style={{ background: "var(--paper)", border: "1px solid var(--rule)", borderRadius: 12, padding: 12 }}>
+            <div key={k} style={{ background: "var(--well)", border: "1px solid var(--rule)", borderRadius: 8, padding: 12 }}>
               <div className="kicker">{k}</div>
-              <div className="mono" style={{ fontSize: 12.5, fontWeight: 700, marginTop: 4 }}>{v}</div>
+              <div className="mono" style={{ fontSize: 12, fontWeight: 700, marginTop: 4, wordBreak: "break-word" }}>{v}</div>
             </div>
           ))}
         </div>
@@ -1535,7 +1883,7 @@ jobs:
         <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
           <div style={{ padding: 14, borderRadius: 12, background: "var(--paper)", border: "1px solid var(--rule)" }}>
             <div style={{ fontWeight: 700, fontSize: 13.5 }}>Step 1 · Add `.github/workflows/pramana.yml` to your repository</div>
-            <pre className="mono" style={{ margin: "8px 0 0", padding: 10, background: "#fff", borderRadius: 8, fontSize: 11.5, overflowX: "auto" }}>
+            <pre className="mono" style={{ margin: "8px 0 0", padding: 10, background: "var(--well)", border: "1px solid var(--rule)", borderRadius: 6, fontSize: 11.5, overflowX: "auto", color: "var(--ink)" }}>
               {actionYaml}
             </pre>
             <button type="button" onClick={() => copyAction(actionYaml)} className="btn-act primary" style={{ marginTop: 10 }}>
@@ -1591,12 +1939,17 @@ function PricingModal({ onClose }) {
 export default function App() {
   const [sid, setSidRaw] = useState(0);
   const [url, setUrl] = useState("");
-  // Active workspace surface: "ready" (calm empty tool state) | "live" (calm live report) | "examples" (worked examples)
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem(THEME_STORAGE_KEY) || "dark";
+    } catch { return "dark"; }
+  });
+  // Active workspace surface: "ready" (calm empty tool state) | "live" (honest live report) | "examples" (worked examples)
   const [surfaceMode, setSurfaceMode] = useState("ready");
+  const [liveAudit, setLiveAudit] = useState(INITIAL_LIVE_AUDIT_STATE);
   const [audit, setAudit] = useState({ state: "done", step: 4, ran: false });
   const [mode, setMode] = useState("vision");
   const [merge, setMerge] = useState("idle");
-  const [serverCustomAudit, setServerCustomAudit] = useState(null);
   const [pageView, setPageView] = useState("command");
   const [showQuotas, setShowQuotas] = useState(false);
   const [showConnectRepo, setShowConnectRepo] = useState(false);
@@ -1610,18 +1963,15 @@ export default function App() {
   });
 
   const inputRef = useRef(null);
-  const timers = useRef([]);
+  const abortRef = useRef(null);
+  const liveAuditRef = useRef(INITIAL_LIVE_AUDIT_STATE);
   const sc = SCENARIOS[sid];
   const effectiveUrl = url.trim() || sc.defaultUrl;
   const site = useMemo(() => parseSite(effectiveUrl), [effectiveUrl]);
 
-  const activeCustomAudit = useMemo(() => {
-    if (surfaceMode !== "live" || !url.trim()) return null;
-    if (serverCustomAudit && serverCustomAudit.hostname === site.host) {
-      return serverCustomAudit;
-    }
-    return buildClientAuditProfile(url);
-  }, [surfaceMode, url, site.host, serverCustomAudit]);
+  // T-306: Only expose settled server audit result — never a heuristic client profile!
+  const activeCustomAudit =
+    surfaceMode === "live" && liveAudit.status === "settled" ? liveAudit.result : null;
 
   const liveHook = useLiveAudit ? useLiveAudit(sc.specId) : {};
   const quotaRouter = useMemo(() => new QuotaAwareRouter(), []);
@@ -1632,26 +1982,49 @@ export default function App() {
     return validateAuditReportPayload ? validateAuditReportPayload({}) : null;
   }, [quotaRouter]);
 
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch { /* ignore */ }
+  }, [theme]);
 
-  const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
+  // Linear-style keyboard shortcut: "/" or Cmd/Ctrl+K focuses URL command bar
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const tag = (e.target?.tagName || "").toLowerCase();
+      const isTyping = tag === "input" || tag === "textarea" || e.target?.isContentEditable;
+      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !isTyping)) {
+        e.preventDefault();
+        setPageView("command");
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => () => { if (abortRef.current) abortRef.current.abort(); }, []);
 
   const pushHistory = (entry) => {
     setRecentAudits((prev) => {
       const filtered = prev.filter((item) => item.url !== entry.url);
-      const next = [entry, ...filtered].slice(0, 5);
+      const next = [entry, ...filtered].slice(0, 6);
       try { localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   };
 
   const selectExample = (i) => {
-    clearTimers();
+    if (abortRef.current) abortRef.current.abort();
+    const nextReset = resetLiveAudit(liveAuditRef.current);
+    liveAuditRef.current = nextReset;
+    setLiveAudit(nextReset);
     setApiError(null);
     setSidRaw(i);
     setSurfaceMode("examples");
     setUrl(SCENARIOS[i].defaultUrl);
-    setServerCustomAudit(null);
     setMerge("idle");
     setPageView("command");
     setAudit({ state: "done", step: 4, ran: true });
@@ -1665,11 +2038,13 @@ export default function App() {
   };
 
   const resetToReadyState = () => {
-    clearTimers();
+    if (abortRef.current) abortRef.current.abort();
+    const nextReset = resetLiveAudit(liveAuditRef.current);
+    liveAuditRef.current = nextReset;
+    setLiveAudit(nextReset);
     setApiError(null);
     setSurfaceMode("ready");
     setUrl("");
-    setServerCustomAudit(null);
     setMerge("idle");
     setPageView("command");
     setAudit({ state: "done", step: 4, ran: false });
@@ -1678,7 +2053,7 @@ export default function App() {
   const executeAuditForUrl = async (targetInput) => {
     const trimmed = String(targetInput ?? url).trim();
     if (!trimmed) {
-      setApiError("Enter a URL above (or click google.com, github.com, or example.com) to run a live audit.");
+      setApiError("Enter a URL above (or click google.com, github.com, example.com, or apple.com/shop/bag) to run a live static HTML audit.");
       if (inputRef.current) inputRef.current.focus();
       return;
     }
@@ -1689,49 +2064,64 @@ export default function App() {
       return;
     }
 
-    if (audit.state === "running") return;
-    clearTimers();
+    // T-306: Cancel any in-flight audit so stale/out-of-order responses never overwrite a newer URL
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const pendingState = beginLiveAudit(liveAuditRef.current, trimmed);
+    liveAuditRef.current = pendingState;
+    setLiveAudit(pendingState);
     setApiError(null);
     setMerge("idle");
     setPageView("command");
     setSurfaceMode("live");
-    setAudit({ state: "running", step: 0, ran: false });
+    setAudit({ state: "running", step: 1, ran: false });
 
-    const fallbackProfile = buildClientAuditProfile(trimmed);
-    pushHistory({
-      url: fallbackProfile.targetUrl,
-      host: fallbackProfile.hostname,
-      mode: "LIVE",
-      verdict: `${fallbackProfile.customFinding.severity} (${fallbackProfile.customFinding.domHealthScore}/100)`,
-    });
-
-    [1, 2, 3, 4].forEach((n, i) => {
-      timers.current.push(
-        setTimeout(() => setAudit(n === 4 ? { state: "done", step: 4, ran: true } : { state: "running", step: n, ran: false }), (i + 1) * 320)
-      );
-    });
+    const reqId = pendingState.requestId;
 
     try {
       const resp = await fetch("/api/audit", {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: trimmed, target_url: trimmed, targetUrl: trimmed, scenarioId: sc.specId }),
       });
-      const data = await resp.json();
-      if (!resp.ok || data.ok === false) {
-        setApiError(data.message || `Audit rejected (HTTP ${resp.status})`);
-      } else if (data.isCustomUrl) {
-        setServerCustomAudit(data);
-        pushHistory({
-          url: data.targetUrl,
-          host: data.hostname,
-          mode: "LIVE",
-          verdict: `${data.customFinding?.severity || "PASS"} (${data.customFinding?.domHealthScore ?? 94}/100)`,
-        });
+      const data = await resp.json().catch(() => null);
+      if (reqId !== liveAuditRef.current.requestId) return;
+
+      if (!resp.ok || !data || data.ok === false) {
+        const errMsg = data?.message || `Audit rejected (HTTP ${resp.status})`;
+        const failed = failLiveAudit(liveAuditRef.current, reqId, errMsg);
+        liveAuditRef.current = failed;
+        setLiveAudit(failed);
+        setApiError(errMsg);
+        setAudit({ state: "done", step: 4, ran: true });
+        return;
       }
-      try { lyriaSynth.playSuccessChime(); } catch { /* ignore */ }
-    } catch {
-      // Offline client profile remains active
+
+      if (data.isCustomUrl) {
+        const settled = resolveLiveAudit(liveAuditRef.current, reqId, data);
+        liveAuditRef.current = settled;
+        setLiveAudit(settled);
+        setAudit({ state: "done", step: 4, ran: true });
+        const sev = data.customFinding?.severity || "UNVERIFIED";
+        const score = data.customFinding?.domHealthScore;
+        pushHistory({
+          url: data.targetUrl || pendingState.submittedUrl,
+          host: `${data.hostname}${(() => { try { const p = new URL(data.targetUrl).pathname; return p && p !== "/" ? p : ""; } catch { return ""; } })()}`,
+          mode: "LIVE",
+          verdict: typeof score === "number" ? `${sev} (${score}/100)` : sev,
+        });
+        try { lyriaSynth.playSuccessChime(); } catch { /* ignore */ }
+      }
+    } catch (err) {
+      if (err?.name === "AbortError" || reqId !== liveAuditRef.current.requestId) return;
+      const errMsg = err instanceof Error ? err.message : "Network error reaching /api/audit";
+      const failed = failLiveAudit(liveAuditRef.current, reqId, `${errMsg} — No client heuristic fallback was substituted.`);
+      liveAuditRef.current = failed;
+      setLiveAudit(failed);
+      setAudit({ state: "done", step: 4, ran: true });
     }
   };
 
@@ -1740,19 +2130,19 @@ export default function App() {
     executeAuditForUrl(sampleUrl);
   };
 
-  const running = audit.state === "running";
+  const running = liveAudit.status === "pending";
 
   return (
     <SiteCtx.Provider value={site}>
       <style>{EDITORIAL_CSS}</style>
-      <div className="page">
-        {/* Minimal, Restrained Masthead */}
+      <div className="page" data-theme={theme}>
+        {/* Sticky Workstation Masthead */}
         <header className="mast">
           <div className="gutter mast-main">
             <div className="brand-row" onClick={resetToReadyState}>
               <h1 className="wordmark">Pramana<em>AI</em></h1>
               <span className="deva" lang="sa">प्रमाण</span>
-              <span className="brand-tagline">Finds checkout &amp; mobile UX bugs and drafts the fix.</span>
+              <span className="brand-tagline">Evidence-grounded static HTML &amp; checkout UX auditor.</span>
             </div>
             <nav className="nav-actions" aria-label="Primary navigation">
               <button
@@ -1767,13 +2157,21 @@ export default function App() {
                 onClick={() => setPageView("certificate")}
                 className={"nav-pill" + (pageView === "certificate" ? " active" : "")}
               >
-                <Icon n="lock" size={13} /> Shareable Summary
+                <Icon n="lock" size={13} /> Shareable Report
               </button>
               <button type="button" onClick={() => setShowConnectRepo(true)} className="nav-pill">
                 <Icon n="merge" size={13} /> Connect Repo
               </button>
               <button type="button" onClick={() => setShowPricing(true)} className="nav-pill accent">
-                Pricing · Free
+                Plans · Free
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+                className="nav-pill mono"
+                title="Switch between Obsidian Telemetry Dark and Editorial Light"
+              >
+                {theme === "dark" ? "☀ Light" : "☾ Dark"}
               </button>
             </nav>
           </div>
@@ -1781,7 +2179,7 @@ export default function App() {
 
         <main className="gutter main">
           {showQuotas && (
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 18 }}>
               <LiveTelemetryStrip health={liveHook.health} liveMeta={liveHook.liveMeta} isProbing={liveHook.isProbing || running} />
             </div>
           )}
@@ -1795,16 +2193,16 @@ export default function App() {
             />
           ) : (
             <div>
-              {/* 1. Quiet, Focused First Paint (Hero + 1 Mode Switch + URL Command Bar + 1 Limitation Line) */}
+              {/* 1. Focused Command Hero */}
               <section className="quiet-hero">
                 <h2 className="quiet-headline">
-                  Paste any URL. We <em>spot the UX bug</em> and draft the fix.
+                  Paste any URL. Get <em>evidence-grounded</em> audit proof.
                 </h2>
                 <p className="quiet-sub">
-                  Instant HTML, form, and accessibility inspection for any public site—or explore full browser + GitHub PR workflows on our connected demo storefront.
+                  Honest static HTML &amp; accessibility inspection on any public URL—or explore full mobile replay &amp; AST-verified PR workflows on our connected demo storefront.
                 </p>
 
-                {/* Single Mode Switch */}
+                {/* Segmented Mode Switch */}
                 <div className="mode-switch-bar" role="tablist" aria-label="Audit mode">
                   <button
                     type="button"
@@ -1815,7 +2213,7 @@ export default function App() {
                     }}
                     className={"mode-tab" + (surfaceMode !== "examples" ? " on" : "")}
                   >
-                    🌐 Live URL Audit
+                    <span className="live-dot" /> Live URL Audit (Static HTML)
                   </button>
                   <button
                     type="button"
@@ -1824,15 +2222,15 @@ export default function App() {
                     onClick={() => selectExample(sid)}
                     className={"mode-tab" + (surfaceMode === "examples" ? " on" : "")}
                   >
-                    🧪 View Worked Example (ZestKart Demo)
+                    Connected Demo Storefront (3 Examples)
                   </button>
                 </div>
 
-                {/* Single URL Command Bar */}
+                {/* Monolithic Command Bar */}
                 <div className="cmd-box">
                   <div className="cmd-row">
                     <div className="cmd-input-wrap">
-                      <Icon n="globe" size={18} style={{ color: "var(--mute)" }} />
+                      <Icon n="globe" size={16} style={{ color: "var(--mute)" }} />
                       <label htmlFor="audit-url" className="sr">Website URL to audit</label>
                       <input
                         ref={inputRef}
@@ -1841,24 +2239,25 @@ export default function App() {
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") executeAuditForUrl(url); }}
-                        placeholder="https://example.com, https://github.com, or your checkout URL..."
+                        placeholder="https://example.com, https://github.com, or https://apple.com/shop/bag"
                         spellCheck="false"
                         autoComplete="off"
                       />
+                      <span className="kbd-hint" title="Press / or Ctrl+K to focus">/</span>
                     </div>
                     <button type="button" onClick={() => executeAuditForUrl(url)} disabled={running} className="cmd-btn">
-                      {running ? (<><span className="spinner" /> Auditing…</>) : (<>Audit URL <Icon n="zap" size={15} /></>)}
+                      {running ? (<><span className="spinner" /> Auditing…</>) : (<>Run Audit <Icon n="zap" size={14} /></>)}
                     </button>
                   </div>
                 </div>
 
-                {apiError && (
-                  <div style={{ maxWidth: 780, margin: "8px auto 0", padding: "8px 14px", borderRadius: 10, background: "var(--red-w)", color: "var(--red-d)", fontSize: 12.5, fontWeight: 700 }}>
+                {apiError && liveAudit.status !== "error" && (
+                  <div style={{ maxWidth: 820, margin: "8px auto 0", padding: "8px 12px", borderRadius: 6, background: "var(--red-w)", color: "var(--red-d)", fontSize: 12.5, fontWeight: 600 }}>
                     ⚠ {apiError}
                   </div>
                 )}
 
-                {/* Sample Chips + Single 1-Line Limitation Statement */}
+                {/* Quick-Try Presets + Capability Boundary */}
                 <div className="cmd-meta">
                   <div className="sample-chips">
                     <span>Try live:</span>
@@ -1866,6 +2265,7 @@ export default function App() {
                       ["google.com", "https://www.google.com"],
                       ["github.com", "https://github.com"],
                       ["example.com", "https://example.com"],
+                      ["apple.com/shop/bag", "https://www.apple.com/shop/bag"],
                     ].map(([label, target]) => (
                       <button key={label} type="button" className="sample-chip" onClick={() => quickTryUrl(target)}>
                         {label}
@@ -1873,45 +2273,34 @@ export default function App() {
                     ))}
                   </div>
                   <span className="limitation-line">
-                    Live mode inspects public HTML only. Full browser + repo PR flow is available on the connected demo storefront.
+                    Live mode inspects static HTML only (fail-closed on JS shells). Browser replay + PRs run on connected repos.
                   </span>
                 </div>
               </section>
 
-              {/* Compact Progress Bar when running */}
-              {running && (
-                <div className="press" aria-live="polite">
-                  <div className="press-bar"><div style={{ width: `${((audit.step + 1) / 4) * 100}%` }} /></div>
-                  <div className="press-status">
-                    <span>Inspecting public HTML, interactive controls, and accessibility…</span>
-                    <span>Step {audit.step + 1}/4</span>
-                  </div>
-                </div>
-              )}
-
-              {/* 2. Surface Routing: Ready State vs. Calm Live Report vs. Worked Examples */}
+              {/* 2. Surface Routing: Ready State vs. Pending/Error/Settled Live Report vs. Worked Examples */}
               {surfaceMode === "ready" && !running && (
                 <section className="ready-grid" aria-label="How Pramana works">
                   <div className="steps-3">
                     <div className="step-card">
-                      <span className="step-num">1</span>
-                      <h3>Paste Any Public URL</h3>
+                      <span className="step-num">01</span>
+                      <h3>Static HTML &amp; Shell Detection</h3>
                       <p>
-                        Run an instant, zero-login server-side inspection of buttons, forms, ARIA labels, and viewport tags on any public webpage.
+                        Inspects public HTML, ARIA roles, forms, and images with zero login—and fails closed with <span className="mono">UNVERIFIED</span> on JS-only shells instead of issuing a false PASS.
                       </p>
                     </div>
                     <div className="step-card">
-                      <span className="step-num">2</span>
-                      <h3>Get Calibrated Findings</h3>
+                      <span className="step-num">02</span>
+                      <h3>Observed Facts vs. Inferences</h3>
                       <p>
-                        See a clean 0–100 readiness score and control-level verdicts—without fabricated conversion percentages on non-checkout pages.
+                        Every claim cites exact observed markup snippets, separates static facts from inferences, and never fabricates revenue or conversion numbers.
                       </p>
                     </div>
                     <div className="step-card">
-                      <span className="step-num">3</span>
-                      <h3>Copy the Fix or Connect GitHub</h3>
+                      <span className="step-num">03</span>
+                      <h3>Evidence-Grounded Fix or PR</h3>
                       <p>
-                        Copy the suggested HTML/CSS snippet immediately, or connect your GitHub repository to unlock full mobile replay and automated PRs.
+                        Copy a remediation snippet tied directly to the observed finding, or connect your GitHub repository for browser replay and AST-verified PRs.
                       </p>
                     </div>
                   </div>
@@ -1919,7 +2308,7 @@ export default function App() {
                   {recentAudits.length > 0 && (
                     <div className="history-card">
                       <div className="history-head">
-                        <span className="kicker">Recent Audits in This Browser Session</span>
+                        <span className="kicker">Recent Settled Audits in This Session</span>
                         <button
                           type="button"
                           onClick={() => {
@@ -1945,7 +2334,7 @@ export default function App() {
                               }
                             }}
                           >
-                            <span className={"badge-pill " + (item.mode === "LIVE" ? "blue" : "warn")}>{item.mode}</span>
+                            <span className={"badge-pill " + (item.mode === "LIVE" ? "cyan" : "warn")}>{item.mode}</span>
                             <b className="mono">{item.host}</b>
                             <span style={{ color: "var(--mute)" }}>{item.verdict}</span>
                           </button>
@@ -1956,7 +2345,23 @@ export default function App() {
                 </section>
               )}
 
-              {surfaceMode === "live" && activeCustomAudit && (
+              {surfaceMode === "live" && liveAudit.status === "pending" && (
+                <PendingLiveAuditCard
+                  url={liveAudit.submittedUrl}
+                  startedAt={liveAudit.startedAt}
+                  onCancel={resetToReadyState}
+                />
+              )}
+
+              {surfaceMode === "live" && liveAudit.status === "error" && (
+                <UnverifiedErrorCard
+                  url={liveAudit.submittedUrl}
+                  error={liveAudit.error}
+                  onRetry={() => executeAuditForUrl(liveAudit.submittedUrl)}
+                />
+              )}
+
+              {surfaceMode === "live" && liveAudit.status === "settled" && activeCustomAudit && (
                 <CalmLiveReport
                   customAudit={activeCustomAudit}
                   onOpenShare={() => setPageView("certificate")}
@@ -2009,7 +2414,7 @@ export default function App() {
         <footer className="colophon">
           <div className="gutter colo-row">
             <span>
-              <b>Pramana AI (प्रमाण)</b> · Built by Team Vimarsha · ZestKart &amp; ScaleGrid are fictional demo storefronts.
+              <b style={{ color: "var(--ink)" }}>Pramana AI (प्रमाण)</b> · Built by Team Vimarsha · ZestKart &amp; ScaleGrid are fictional demo storefronts.
             </span>
             <div className="colo-links">
               <button type="button" onClick={() => setShowQuotas((q) => !q)}>
