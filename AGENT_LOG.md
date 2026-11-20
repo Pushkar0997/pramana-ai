@@ -27,3 +27,10 @@
 - **Collapsed Worked Examples (`surfaceMode === "examples"`):** Keeps only `1. Issue Detected` and `2. Proposed Code Fix Diff` open alongside the interactive mobile/desktop visual stage, moving `3. Technical Diagnostics (Root-Cause Logs, 4-Step Skill Trail & JSON)` behind a progressive disclosure toggle.
 - **Product Surfaces Added:** Interactive `Connect GitHub Repo` modal (with copyable `.github/workflows/pramana.yml`), `Plans & Packaging` modal (`$0 Free Buildathon`, `$199/mo Growth`, `$499/mo Pro`), and persistent `localStorage` session history.
 - **Verification:** `python3 scripts/spec_lint.py` passed; 24/24 unit & contract tests (`tests/*.py`) passed in 0.12s.
+
+## 2026-11-17 — Live Public-Site Review and Report-Trust Backlog (T-305–T-311 proposed)
+- Opened the deployed Vercel app and completed read-only live audits of Google, GitHub, Apple's iPhone buying page, and Apple's shopping bag. `/api/health` returned HTTP 200; the inspected browser session had zero console errors/warnings.
+- Recorded settled server results and the visible early client estimate in [`spec/changes/RFC-20261117-live-report-trust/proposal.md`](spec/changes/RFC-20261117-live-report-trust/proposal.md).
+- Key finding: Apple's shopping-bag response contained “Please enable JavaScript” but received `PASS`/99 and `auditLimitation.limited=false`; commerce route classification also missed `/shop/bag`.
+- Follow-up tasks `T-305` through `T-311` cover fail-closed shell detection, asynchronous UI/report parity, evidence-grounded findings, deterministic regressions, truthful cost/model telemetry, the static-vs-browser capability boundary, and target-user report validation.
+- This was a documentation-only follow-up. No application code, production data, or external site state was changed. No automated test suite was run.
