@@ -465,7 +465,11 @@ function parseSite(url) {
   const extracted = extractBrandFromUrl(raw);
   const brand = host.includes("zestkart") ? "ZestKart" : extracted !== "UnknownBrand" ? extracted : host.split(".")[0];
   const coupon = brand.replace(/[^a-z]/gi, "").slice(0, 4).toUpperCase().padEnd(4, "X") + "300";
-  const isPreset = host.includes("zestkart.in") || host.includes("scalegrid.io");
+  const isPreset =
+    host.includes("zestkart.in") ||
+    host.includes("scalegrid.io") ||
+    host.includes("vedacare.in") ||
+    host.includes("glowbotanics.in");
   return { brand, host, pathname, coupon, isPreset };
 }
 
@@ -782,6 +786,112 @@ const SCENARIOS = [
       cue: "Audio cue: rising notes confirm UI report",
     },
   },
+  {
+    id: "gokwik", specId: "S4_GOKWIK_DEAD_CTA", emoji: "⚡",
+    label: "Example 4: Dead Checkout Anchor on 4G (VedaCare Demo)",
+    short: "Primary Express UPI CTA uses javascript:void(0) & stalls on 4G",
+    defaultUrl: "https://shop.vedacare.in/products/daily-pack",
+    kind: "mobile", variant: "gokwik", prn: 145, device: "iPhone 15 · Safari 17",
+    viewport: "390 × 844 px · Slow 4G",
+    drop: "-11.4%", dropN: 11.4, leakUSD: 14200,
+    figCaption: "VedaCare (fictional D2C demo modeled on real Shopify/GoKwik patterns): Primary UPI Express button uses <a href=\"javascript:void(0)\"> and silently drops taps until third-party JS loads.",
+    summary: "The primary UPI Express Checkout CTA is authored as <a href=\"javascript:void(0)\"> relying on a late third-party onclick script; on mobile 4G, taps during the first 3.4s do nothing and payment icons lack alt text.",
+    trace: [
+      { lvl: "err", at: "00:02.180", msg: "DeadClick: <a href=\"javascript:void(0)\" id=\"kp-checkout\"> fired 0 navigation or checkout handlers before GoKwik bundle hydrated", src: "ExpressCheckoutCta.tsx:14" },
+      { lvl: "warn", at: "00:02.410", msg: "WCAG 1.1.1: <img src=\"upi-icons.svg\"> missing alt attribute & explicit width/height", src: "ExpressCheckoutCta.tsx:19" },
+    ],
+    json: { spec_id: "S4_GOKWIK_DEAD_CTA", severity: "critical", category: "dead_anchor_cta", component: "ExpressCheckoutCta", viewport: "390x844", confidence: 0.986 },
+    skills: [
+      { name: "BrowserSandboxSkill", desc: "Reproduced 4G pre-hydration tap drop on 390px viewport", dur: "1.2s" },
+      { name: "TraceCorrelatorSkill", desc: "Matched 4 dead taps to <a href=\"javascript:void(0)\"> before script ready", dur: "0.3s" },
+      { name: "ASTBlastRadiusSkill", desc: "Verified ExpressCheckoutCta.tsx & fallback route /checkout", dur: "0.4s" },
+      { name: "GitPatchSkill", desc: "Converted anchor to semantic <button> with native /checkout fallback", dur: "0.3s" },
+    ],
+    pr: {
+      branch: "pramana/fix-express-upi-anchor-145",
+      title: "fix(checkout): replace javascript:void(0) anchor with progressive <button> + UPI alt text",
+      file: "src/components/checkout/ExpressCheckoutCta.tsx",
+      hunk: "@@ -11,9 +11,11 @@",
+      diff: [
+        { t: "ctx", c: "export function ExpressCheckoutCta({ onExpressPay }: Props) {" },
+        { t: "del", c: "  return <a href=\"javascript:void(0);\" className=\"btn-primary\" onClick={onExpressPay}>" },
+        { t: "del", c: "    Buy Now via UPI <img src=\"/upi-icons.svg\" /></a>;" },
+        { t: "add", c: "  return <button type=\"button\" id=\"express-upi-cta\" className=\"btn-primary min-h-[48px]\" onClick={() => onExpressPay?.() || (window.location.href = '/checkout')}>" },
+        { t: "add", c: "    Buy Now via UPI <img src=\"/upi-icons.svg\" alt=\"UPI, GPay, PhonePe accepted\" width={84} height={20} /></button>;" },
+        { t: "ctx", c: "}" },
+      ],
+    },
+    changes: ["href=\"javascript:void(0)\" → <button>", "Fallback → /checkout", "UPI icon alt + 84×20"],
+    boxes: [
+      { b: M(16, 540, 358, 58), kind: "err", label: "dead anchor CTA" },
+      { b: M(110, 610, 170, 26), kind: "warn", label: "missing alt & size" },
+    ],
+    tags: [
+      { text: "javascript:void(0) drops 4G taps", kind: "err", x: 4, y: 404, w: 152, from: "r", box: 0, at: "l" },
+      { text: "UPI badge missing alt & dims", kind: "warn", x: 478, y: 468, w: 158, from: "l", box: 1, at: "r" },
+    ],
+    cursor: [{ x: 195, y: 568, l: "tap Buy Now" }],
+    voice: {
+      lang: "English", node: "#express-upi-cta", match: "98.1%", target: M(16, 540, 358, 58, 4, 8),
+      lines: [
+        { who: "Shopper", text: "I keep tapping Buy Now via UPI on my phone and literally nothing opens." },
+        { who: "Pramana Voice Orb", text: "Captured — the button used javascript:void(0) before the checkout script finished loading." },
+      ],
+      cue: "Audio cue: soft chime confirms CTA trace",
+    },
+  },
+  {
+    id: "cls", specId: "S5_MOBILE_CLS_ZOOM", emoji: "📐",
+    label: "Example 5: Zoom Blocked & Shifting Buy CTA (GlowBotanics Demo)",
+    short: "Pinch-zoom blocked & unsized hero shifts Add-to-Cart by 142px",
+    defaultUrl: "https://glowbotanics.in/products/vitamin-c-serum",
+    kind: "mobile", variant: "cls", prn: 146, device: "iPhone 15 · Safari 17",
+    viewport: "390 × 844 px · Mobile 4G",
+    drop: "-8.9%", dropN: 8.9, leakUSD: 9600,
+    figCaption: "GlowBotanics (fictional skincare D2C demo): Viewport locks user-scalable=0 and unsized product photos shift Add to Cart down by 142px mid-tap.",
+    summary: "Meta viewport sets maximum-scale=1, user-scalable=0 (blocking zoom on ingredient labels), while hero product images without width/height cause a 0.34 CLS shift that pushes Add to Cart away mid-tap.",
+    trace: [
+      { lvl: "warn", at: "00:01.120", msg: "WCAG 1.4.4: <meta name=\"viewport\" content=\"width=device-width,maximum-scale=1,user-scalable=0\"> blocks mobile zoom", src: "index.html:6" },
+      { lvl: "err", at: "00:02.840", msg: "LayoutShift (CLS 0.34): img.hero-serum loaded without width/height, shifting #add-to-cart-cta +142px downward", src: "ProductHero.tsx:22" },
+    ],
+    json: { spec_id: "S5_MOBILE_CLS_ZOOM", severity: "high", category: "mobile_cls_and_zoom", component: "ProductHero", viewport: "390x844", cls: 0.34, confidence: 0.988 },
+    skills: [
+      { name: "BrowserSandboxSkill", desc: "Measured 0.34 CLS layout jump on throttled mobile 4G", dur: "1.3s" },
+      { name: "TraceCorrelatorSkill", desc: "Correlated hero image decode with +142px CTA displacement", dur: "0.2s" },
+      { name: "ASTBlastRadiusSkill", desc: "Verified ProductHero.tsx and layout meta viewport tag", dur: "0.4s" },
+      { name: "GitPatchSkill", desc: "Added aspect-square dimensions & unlocked pinch-to-zoom", dur: "0.3s" },
+    ],
+    pr: {
+      branch: "pramana/fix-mobile-cls-zoom-146",
+      title: "fix(pdp): reserve hero image height (CLS 0.34→0.01) & unlock mobile pinch-to-zoom",
+      file: "src/components/pdp/ProductHero.tsx",
+      hunk: "@@ -18,7 +18,8 @@",
+      diff: [
+        { t: "ctx", c: "export function ProductHero({ imageUrl, title }: Props) {" },
+        { t: "del", c: "  return <img src={imageUrl} className=\"w-full object-cover\" />;" },
+        { t: "add", c: "  return <img src={imageUrl} alt={title} width={390} height={390} className=\"w-full aspect-square object-cover\" fetchPriority=\"high\" />;" },
+        { t: "ctx", c: "}" },
+      ],
+    },
+    changes: ["CLS: 0.34 → 0.01", "aspect-square 390×390", "user-scalable=0 removed"],
+    boxes: [
+      { b: M(16, 136, 358, 176), kind: "warn", label: "CLS +142px shift" },
+      { b: M(16, 488, 358, 54), kind: "err", label: "CTA jumped mid-tap" },
+    ],
+    tags: [
+      { text: "Unsized hero shifts layout (+142px)", kind: "warn", x: 4, y: 180, w: 152, from: "r", box: 0, at: "l" },
+      { text: "Buy CTA shifted under promo link", kind: "err", x: 478, y: 400, w: 158, from: "l", box: 1, at: "r" },
+    ],
+    cursor: [{ x: 195, y: 514, l: "mis-tap CTA" }],
+    voice: {
+      lang: "English", node: "#add-to-cart-cta", match: "97.6%", target: M(16, 488, 358, 54, 4, 8),
+      lines: [
+        { who: "Shopper", text: "The page jumped right when I tapped Add to Cart and I can't even zoom in to read the ingredients!" },
+        { who: "Pramana Voice Orb", text: "Pinned to ProductHero.tsx — reserving 390×390 image dimensions and re-enabling pinch-to-zoom." },
+      ],
+      cue: "Audio cue: ascending chime confirms layout report",
+    },
+  },
 ];
 
 function highlight(code) {
@@ -814,7 +924,78 @@ function MobileSim({ variant, fixed }) {
   const { host, coupon } = useContext(SiteCtx);
   const upi = variant === "upi";
   const hindi = variant === "hindi";
+  const gokwik = variant === "gokwik";
+  const cls = variant === "cls";
   const rowS = { display: "flex", justifyContent: "space-between", fontSize: 14, padding: "3px 0" };
+
+  if (gokwik) {
+    return (
+      <PhoneShell>
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 44, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 30px 0", fontSize: 14, fontWeight: 600 }}>
+          <span>9:41</span><span style={{ fontSize: 12 }}>Jio 4G ▂▄</span>
+        </div>
+        <div style={{ position: "absolute", top: 46, left: 16, right: 16, height: 34, borderRadius: 12, background: "#E9E7E0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: L.mute }}>
+          🔒 shop.vedacare.in (D2C Demo)
+        </div>
+        <div style={{ position: "absolute", top: 96, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ height: 220, borderRadius: 18, background: "linear-gradient(135deg, #0F172A, #1E3A8A)", color: "#fff", padding: 20, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", color: "#93C5FD" }}>BESTSELLER · 4.8 ★ (2,140)</span>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>Daily Wellness Pack</div>
+              <div style={{ fontSize: 13, color: "#CBD5E1", marginTop: 4 }}>60 Capsules · Free Express Delivery</div>
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800 }}>₹1,499 <span style={{ fontSize: 14, textDecoration: "line-through", opacity: 0.6 }}>₹1,999</span></div>
+          </div>
+          <div style={{ background: L.card, border: `1px solid ${L.line}`, borderRadius: 14, padding: 14, fontSize: 13 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Express UPI Checkout</div>
+            <div style={{ color: L.mute }}>{fixed ? "Progressive <button> ready immediately (0ms hydration delay)" : "Waiting for 3rd-party checkout bundle (3.4s on 4G)…"}</div>
+          </div>
+          <div style={{ position: "relative", marginTop: 84 }}>
+            <div style={{ height: 54, borderRadius: 14, background: fixed ? "#007A51" : "#111827", color: "#fff", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: fixed ? 1 : 0.72 }}>
+              {fixed ? "✓ Buy Now via UPI · ₹1,499" : "Buy Now via UPI (javascript:void(0))"}
+            </div>
+            <div style={{ textAlign: "center", marginTop: 10, fontSize: 11.5, color: fixed ? "#007A51" : "#C2300F", fontWeight: 600 }}>
+              {fixed ? "alt=\"UPI, GPay, PhonePe accepted\" · 84×20px reserved" : "⚠ upi-icons.svg missing alt & dimensions"}
+            </div>
+          </div>
+        </div>
+      </PhoneShell>
+    );
+  }
+
+  if (cls) {
+    return (
+      <PhoneShell>
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 44, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 30px 0", fontSize: 14, fontWeight: 600 }}>
+          <span>9:41</span><span style={{ fontSize: 12 }}>4G ▂▄</span>
+        </div>
+        <div style={{ position: "absolute", top: 46, left: 16, right: 16, height: 34, borderRadius: 12, background: "#E9E7E0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: L.mute }}>
+          🔒 glowbotanics.in (D2C Demo)
+        </div>
+        <div style={{ position: "absolute", top: 92, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ padding: "6px 10px", borderRadius: 8, background: fixed ? "#D8F5E8" : "#FFE5DD", color: fixed ? "#007A51" : "#C2300F", fontSize: 11.5, fontWeight: 700 }}>
+            {fixed ? "✓ Pinch-to-zoom enabled · CLS 0.01" : "⚠ user-scalable=0 blocks zoom · CLS 0.34"}
+          </div>
+          <div style={{ height: fixed ? 220 : 176, borderRadius: 16, background: "linear-gradient(135deg, #FEF3C7, #FDE68A)", border: fixed ? "1.5px solid #00A36C" : "2px dashed #F0431F", padding: 18, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#92400E" }}>15% VITAMIN C FACE SERUM</span>
+            <div style={{ fontSize: 13, color: "#78350F" }}>
+              {fixed ? "Reserved 390×390 aspect-square frame — zero jump" : "Unsized hero image pops in late → shifts page +142px"}
+            </div>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>GlowBotanics Serum · ₹599</div>
+          {!fixed && (
+            <div style={{ padding: "8px 12px", borderRadius: 10, background: "#FFF0C2", border: "1px solid #FFB400", fontSize: 12, color: "#8A5F00", fontWeight: 700 }}>
+              ↓ Layout jumped +142px right as shopper tapped!
+            </div>
+          )}
+          <div style={{ marginTop: fixed ? 48 : 34, height: 52, borderRadius: 14, background: fixed ? "#007A51" : L.brand, color: "#fff", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {fixed ? "✓ Add to Cart · ₹599 (Stable)" : "Add to Cart · ₹599 (Shifted)"}
+          </div>
+        </div>
+      </PhoneShell>
+    );
+  }
+
   return (
     <PhoneShell>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 44, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 30px 0", fontSize: 14, fontWeight: 600 }}>
@@ -1231,22 +1412,47 @@ function UnverifiedErrorCard({ url, error, onRetry }) {
   );
 }
 
-/* ═════════════ Live 390×844 Mobile Viewport & Pinpointed Issue X-Ray ═════════════ */
+/* ═════════════ Live 390×844 Mobile Screenshot + Pinpointed Issues X-Ray + Mobile DOM ═════════════ */
 function LiveMobileViewport({ customAudit }) {
   const dom = customAudit.scrapedDom || {};
   const finding = customAudit.customFinding || {};
   const findingsList = finding.findings || [];
+  const headings = dom.headings || [];
   const elements = dom.interactiveElements || [];
   const warnControls = elements.filter((el) => el.auditStatus !== "PASS");
   const mobileVp = dom.mobileViewport || { width: 390, height: 844, frameAllowed: false, frameBlockedReason: null };
   const limitation = finding.auditLimitation || dom.auditLimitation || { limited: false };
-  const hasPreviewHtml = Boolean(dom.mobilePreviewHtml && dom.mobilePreviewHtml.trim().length > 40);
-  const canRenderLiveDom = Boolean(mobileVp.frameAllowed || hasPreviewHtml);
-  const [viewMode, setViewMode] = useState("issues");
+
+  const encodedUrl = encodeURIComponent(customAudit.targetUrl || "");
+  const microlinkShotUrl = `https://api.microlink.io/?url=${encodedUrl}&screenshot=true&meta=false&viewport.width=390&viewport.height=844&viewport.isMobile=true&waitUntil=domcontentloaded&embed=screenshot.url`;
+  const mshotsUrl = `https://s0.wp.com/mshots/v1/${encodedUrl}?w=390&h=844`;
+
+  // Waterfall: 0 = server renderedScreenshotDataUrl (if any), 1 = Microlink 390x844 real Chromium screenshot, 2 = WordPress mShots, 3 = fallback iframe/DOM
+  const [shotTier, setShotTier] = useState(dom.renderedScreenshotDataUrl ? 0 : 1);
+  const [shotLoaded, setShotLoaded] = useState(Boolean(dom.renderedScreenshotDataUrl));
+  const [viewMode, setViewMode] = useState("screen");
 
   useEffect(() => {
-    setViewMode(findingsList.length > 0 || limitation.limited ? "issues" : canRenderLiveDom ? "iframe" : "issues");
-  }, [customAudit.targetUrl, findingsList.length, limitation.limited, canRenderLiveDom]);
+    setShotTier(dom.renderedScreenshotDataUrl ? 0 : 1);
+    setShotLoaded(Boolean(dom.renderedScreenshotDataUrl));
+    setViewMode("screen");
+  }, [customAudit.targetUrl, dom.renderedScreenshotDataUrl]);
+
+  const activeShotSrc =
+    shotTier === 0
+      ? dom.renderedScreenshotDataUrl
+      : shotTier === 1
+      ? microlinkShotUrl
+      : shotTier === 2
+      ? mshotsUrl
+      : null;
+
+  const handleShotError = () => {
+    if (shotTier < 3) {
+      setShotLoaded(false);
+      setShotTier((t) => t + 1);
+    }
+  };
 
   return (
     <div className="story">
@@ -1254,26 +1460,26 @@ function LiveMobileViewport({ customAudit }) {
         <div>
           <span className="kicker">Mobile Viewport · 390 × 844 px</span>
           <span className="story-title">
-            {findingsList.length > 0 ? `Pinpointed Mobile Issues (${findingsList.length})` : "Live Mobile Capture"}
+            {viewMode === "screen"
+              ? "Live Mobile Screen"
+              : viewMode === "issues"
+              ? `Pinpointed Issues (${findingsList.length})`
+              : "Parsed Mobile DOM"}
           </span>
         </div>
         <div className="seg" role="tablist" aria-label="Mobile view mode">
-          <button
-            type="button"
-            className={viewMode === "issues" ? "on" : ""}
-            onClick={() => setViewMode("issues")}
-          >
-            Issues X-Ray ({findingsList.length})
+          <button type="button" className={viewMode === "screen" ? "on" : ""} onClick={() => setViewMode("screen")}>
+            Live Screen
           </button>
-          <button
-            type="button"
-            className={viewMode === "iframe" ? "on" : ""}
-            onClick={() => setViewMode("iframe")}
-          >
-            Live 390px Render
+          <button type="button" className={viewMode === "issues" ? "on" : ""} onClick={() => setViewMode("issues")}>
+            X-Ray ({findingsList.length})
+          </button>
+          <button type="button" className={viewMode === "dom" ? "on" : ""} onClick={() => setViewMode("dom")}>
+            DOM
           </button>
         </div>
       </div>
+
       <div className="story-body" style={{ display: "grid", gap: 12 }}>
         <div className="phone-shell">
           <div className="phone-notch">
@@ -1285,114 +1491,111 @@ function LiveMobileViewport({ customAudit }) {
             🔒 {customAudit.targetUrl}
           </div>
           <div className="phone-viewport">
-            {viewMode === "iframe" ? (
-              <div style={{ width: "100%", height: "100%", position: "relative" }}>
-                {mobileVp.frameAllowed ? (
+            {viewMode === "screen" && (
+              <div style={{ width: "100%", height: "100%", position: "relative", background: "#F6F7FB", overflow: "hidden" }}>
+                {activeShotSrc ? (
+                  <>
+                    {!shotLoaded && (
+                      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: 20, textAlign: "center", background: "#F6F7FB", zIndex: 2 }}>
+                        <span className="spinner tiny" />
+                        <div className="mono" style={{ fontSize: 10.5, fontWeight: 700, color: "#1B27C7" }}>
+                          CAPTURING LIVE 390×844 CHROMIUM SCREENSHOT…
+                        </div>
+                        <div style={{ fontSize: 11, color: "#636A82" }}>
+                          Rendering real mobile view of {customAudit.hostname}
+                        </div>
+                      </div>
+                    )}
+                    <img
+                      src={activeShotSrc}
+                      alt={`Real live 390×844 mobile screenshot of ${customAudit.hostname}`}
+                      onLoad={() => setShotLoaded(true)}
+                      onError={handleShotError}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        objectPosition: "top center",
+                        display: "block",
+                        opacity: shotLoaded ? 1 : 0,
+                        transition: "opacity .25s ease",
+                      }}
+                    />
+                    {shotLoaded && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 8,
+                          right: 8,
+                          background: "rgba(0, 122, 81, 0.92)",
+                          color: "#fff",
+                          font: "700 9px var(--mono)",
+                          padding: "3px 7px",
+                          borderRadius: 999,
+                          letterSpacing: ".04em",
+                        }}
+                      >
+                        ● LIVE 390PX RENDER
+                      </span>
+                    )}
+                  </>
+                ) : mobileVp.frameAllowed ? (
                   <iframe
                     src={customAudit.targetUrl}
-                    title={`Live mobile preview of ${customAudit.hostname}`}
+                    title={`Live mobile frame of ${customAudit.hostname}`}
                     className="phone-iframe"
                     sandbox="allow-scripts allow-same-origin allow-forms"
                     referrerPolicy="no-referrer"
                   />
-                ) : hasPreviewHtml ? (
-                  <iframe
-                    srcDoc={dom.mobilePreviewHtml}
-                    title={`Sanitized live mobile HTML render of ${customAudit.hostname}`}
-                    className="phone-iframe"
-                    sandbox="allow-same-origin"
-                    referrerPolicy="no-referrer"
-                  />
                 ) : (
-                  <iframe
-                    src={customAudit.targetUrl}
-                    title={`Live mobile preview of ${customAudit.hostname}`}
-                    className="phone-iframe"
-                    sandbox="allow-scripts allow-same-origin"
-                    referrerPolicy="no-referrer"
-                  />
-                )}
-                {findingsList.length > 0 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 8,
-                      right: 8,
-                      bottom: 8,
-                      background: "rgba(11,16,32,0.92)",
-                      color: "#fff",
-                      borderRadius: 10,
-                      padding: "8px 10px",
-                      fontSize: 11,
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span>
-                      <b style={{ color: "#FF6B4A" }}>● {findingsList.length} mobile defect{findingsList.length === 1 ? "" : "s"}</b> outlined on page
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setViewMode("issues")}
-                      style={{ background: "#F0431F", color: "#fff", border: 0, borderRadius: 6, padding: "3px 8px", font: "700 10px var(--mono)" }}
-                    >
-                      Inspect →
-                    </button>
+                  <div style={{ padding: 16, textAlign: "center", display: "grid", gap: 10, placeItems: "center", height: "100%" }}>
+                    <div className="mono" style={{ fontSize: 11, color: "#636A82" }}>
+                      Live screenshot service temporarily rate-limited. Switch to <b>X-Ray</b> or <b>DOM</b> to inspect all {findingsList.length} findings.
+                    </div>
                   </div>
                 )}
-              </div>
-            ) : (
-              <div style={{ padding: 12, height: "100%", overflowY: "auto", fontFamily: "var(--sans)", fontSize: 12, color: "#0B1020", background: "#fff" }}>
-                {/* Mini Live Visual Header: Real Rendered Screenshot (Playwright/Lighthouse) or Sanitized Live Mobile DOM */}
-                {dom.renderedScreenshotDataUrl ? (
-                  <div style={{ marginBottom: 10, borderRadius: 8, overflow: "hidden", border: "1.5px solid #00A36C", position: "relative", background: "#F6F7FB" }}>
-                    <img
-                      src={dom.renderedScreenshotDataUrl}
-                      alt={`Rendered 390px mobile screenshot of ${customAudit.hostname}`}
-                      style={{ width: "100%", height: 150, objectFit: "cover", objectPosition: "top", display: "block" }}
-                    />
-                    <span
-                      style={{
-                        position: "absolute",
-                        right: 6,
-                        bottom: 6,
-                        background: "#007A51",
-                        color: "#fff",
-                        font: "700 9px var(--mono)",
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                      }}
-                    >
-                      REAL RENDERED SCREENSHOT
-                    </span>
-                  </div>
-                ) : hasPreviewHtml && !limitation.limited ? (
-                  <div style={{ height: 118, overflow: "hidden", borderRadius: 8, border: "1.5px solid #F0431F", marginBottom: 10, position: "relative", background: "#F6F7FB" }}>
-                    <iframe
-                      srcDoc={dom.mobilePreviewHtml}
-                      title={`Mini mobile snapshot of ${customAudit.hostname}`}
-                      style={{ width: 390, height: 320, border: 0, transform: "scale(0.69)", transformOrigin: "top left", pointerEvents: "none" }}
-                      sandbox="allow-same-origin"
-                    />
-                    <span
-                      style={{
-                        position: "absolute",
-                        right: 6,
-                        bottom: 6,
-                        background: "#F0431F",
-                        color: "#fff",
-                        font: "700 9px var(--mono)",
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                      }}
-                    >
-                      LIVE 390PX DOM SNAPSHOT
-                    </span>
-                  </div>
-                ) : null}
 
+                {/* Bottom Defect HUD Pill */}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 8,
+                    right: 8,
+                    bottom: 8,
+                    background: "rgba(11,16,32,0.92)",
+                    color: "#fff",
+                    borderRadius: 10,
+                    padding: "8px 10px",
+                    fontSize: 11,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 8,
+                    zIndex: 4,
+                  }}
+                >
+                  <span>
+                    {limitation.limited ? (
+                      <><b style={{ color: "#FFB400" }}>● UNVERIFIED</b> ({limitation.code})</>
+                    ) : findingsList.length > 0 ? (
+                      <><b style={{ color: "#FF6B4A" }}>● {findingsList.length} defect{findingsList.length === 1 ? "" : "s"}</b> found on mobile</>
+                    ) : (
+                      <><b style={{ color: "#34D399" }}>● 0 static defects</b> found</>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("issues")}
+                    style={{ background: findingsList.length > 0 ? "#F0431F" : "#2B3BFF", color: "#fff", border: 0, borderRadius: 6, padding: "4px 8px", font: "700 10px var(--mono)" }}
+                  >
+                    Issues X-Ray →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {viewMode === "issues" && (
+              <div style={{ padding: 12, height: "100%", overflowY: "auto", fontFamily: "var(--sans)", fontSize: 12, color: "#0B1020", background: "#fff" }}>
                 {limitation.limited && (
                   <div style={{ padding: "10px 11px", borderRadius: 10, background: "#FFF0C2", border: "1.5px solid #FFB400", marginBottom: 10 }}>
                     <div className="mono" style={{ fontSize: 9.5, fontWeight: 700, color: "#8A5F00" }}>UNVERIFIED · {limitation.code}</div>
@@ -1401,18 +1604,17 @@ function LiveMobileViewport({ customAudit }) {
                   </div>
                 )}
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <span className="mono" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", color: findingsList.length > 0 ? "#C2300F" : "#007A51" }}>
                     {findingsList.length > 0
                       ? `Pinpointed Mobile Bugs (${findingsList.length})`
-                      : "0 Static Mobile Defects Detected"}
+                      : "0 Static Mobile Defects"}
                   </span>
                   <span className="mono" style={{ fontSize: 9.5, color: "#636A82" }}>
                     {customAudit.activeModel || "gemini-3.5-flash-lite"}
                   </span>
                 </div>
 
-                {/* Render EXACT issues found on the page (NEVER a list of green PASS nav links when issues exist!) */}
                 {findingsList.length > 0 ? (
                   <div style={{ display: "grid", gap: 8 }}>
                     {findingsList.map((f, idx) => (
@@ -1486,16 +1688,68 @@ function LiveMobileViewport({ customAudit }) {
                 )}
               </div>
             )}
+
+            {viewMode === "dom" && (
+              <div style={{ padding: 14, height: "100%", overflowY: "auto", fontFamily: "var(--sans)", fontSize: 12.5, color: "#0B1020", background: "#fff" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <span className="badge-pill blue" style={{ fontSize: 9.5 }}>Parsed Mobile HTML</span>
+                  <span className="mono" style={{ fontSize: 10, color: "#636A82" }}>HTTP {customAudit.httpStatus ?? 0}</span>
+                </div>
+                {dom.ogImage && /^https?:\/\//i.test(dom.ogImage) && (
+                  <img
+                    src={dom.ogImage}
+                    alt={`${customAudit.hostname} preview`}
+                    style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 8, border: "1px solid #D8DCEA", marginBottom: 10 }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                )}
+                <div style={{ fontWeight: 800, fontSize: 15, lineHeight: 1.25, marginBottom: 4 }}>
+                  {headings[0]?.text || dom.pageTitle || customAudit.hostname}
+                </div>
+                {dom.metaDescription && (
+                  <p style={{ margin: "0 0 10px", fontSize: 11.5, color: "#3B4259", lineHeight: 1.4 }}>
+                    {dom.metaDescription}
+                  </p>
+                )}
+                <div className="mono" style={{ fontSize: 9.5, textTransform: "uppercase", color: "#636A82", marginBottom: 6 }}>
+                  Observed Mobile Controls ({elements.length})
+                </div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  {elements.slice(0, 6).map((el, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: "7px 9px",
+                        borderRadius: 8,
+                        border: el.auditStatus === "PASS" ? "1px solid #D8DCEA" : "1.5px solid #F0431F",
+                        background: el.auditStatus === "PASS" ? "#F6F7FB" : "#FFE5DD",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, fontSize: 11.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {el.accessibleName || el.label}
+                      </span>
+                      <span className={"badge-pill " + (el.auditStatus === "PASS" ? "ok" : "err")} style={{ fontSize: 9 }}>
+                        {el.auditStatus}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6, fontSize: 11.5, color: "var(--mute)" }}>
           <span>
-            {viewMode === "issues"
-              ? `Showing ${findingsList.length} exact pinpointed defect${findingsList.length === 1 ? "" : "s"} caught on ${customAudit.hostname}.`
-              : mobileVp.frameAllowed
-              ? "Live 390px mobile frame loaded."
-              : "Rendering server-fetched mobile HTML with red defect outlines."}
+            {viewMode === "screen"
+              ? `Real 390×844 mobile browser render of ${customAudit.hostname}.`
+              : viewMode === "issues"
+              ? `Pinpointing ${findingsList.length} exact defect${findingsList.length === 1 ? "" : "s"} caught on ${customAudit.hostname}.`
+              : `Parsed static DOM & controls (${elements.length} controls).`}
           </span>
           <a href={customAudit.targetUrl} target="_blank" rel="noopener noreferrer" className="mono" style={{ color: "var(--blue)", fontWeight: 700, textDecoration: "none" }}>
             Open Live Site ↗
@@ -2490,7 +2744,7 @@ export default function App() {
                     onClick={() => selectExample(sid)}
                     className={"mode-tab" + (surfaceMode === "examples" ? " on" : "")}
                   >
-                    Connected Demo Storefront (3 Examples)
+                    Connected Demo Storefront (5 Examples)
                   </button>
                 </div>
 
@@ -2532,8 +2786,9 @@ export default function App() {
                     {[
                       ["boldcare.in (D2C)", "https://boldcare.in"],
                       ["plumgoodness.com (D2C)", "https://plumgoodness.com"],
+                      ["beminimalist.co (D2C)", "https://beminimalist.co"],
+                      ["thesouledstore.com (D2C)", "https://www.thesouledstore.com"],
                       ["github.com (Non-Checkout)", "https://github.com"],
-                      ["demoblaze.com (Store)", "https://demoblaze.com"],
                       ["apple.com/shop/bag (JS Shell)", "https://www.apple.com/shop/bag"],
                     ].map(([label, target]) => (
                       <button key={label} type="button" className="sample-chip" onClick={() => quickTryUrl(target)}>
