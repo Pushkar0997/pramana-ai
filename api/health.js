@@ -34,9 +34,9 @@ export default async function handler(req, res) {
       },
     },
     cascade_router: {
-      'gemini-3.5-flash-lite': { rpd: '500 RPD', role: 'primary_live_multimodal_audit', status: 'ACTIVE_LIVE' },
-      'gemini-3.1-flash-lite': { rpd: '500 RPD', role: 'fast_json_fallback', status: 'ACTIVE_LIVE' },
-      'gemma-4-31b-it': { rpd: '14.4K RPD', role: 'high_throughput_text_fallback', status: 'ACTIVE_LIVE' },
+      'gemini-3.1-flash-lite': { rpd: '500 RPD', role: 'primary_fast_live_multimodal_audit', status: 'ACTIVE_LIVE' },
+      'gemini-3-flash-preview': { rpd: '500 RPD', role: 'multimodal_json_fallback', status: 'ACTIVE_LIVE' },
+      'gemma-4-26b-a4b-it': { rpd: '14.4K RPD', role: 'high_throughput_gemma4_moe_fallback', status: 'ACTIVE_LIVE' },
     },
     timestamp: new Date().toISOString(),
   });

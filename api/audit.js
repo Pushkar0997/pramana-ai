@@ -1050,6 +1050,7 @@ async function callGoogleAiStudio(modelId, apiKey, prompt, screenshotDataUrl = n
     temperature: 0.1,
     ...(isGemma ? {} : { responseMimeType: 'application/json' }),
     ...(modelId === 'gemini-3.1-flash-lite' ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+    ...(modelId === 'gemini-3-flash-preview' ? { thinkingConfig: { thinkingLevel: 'MINIMAL' } } : {}),
   };
 
   const parts = [{ text: prompt }];
@@ -1068,7 +1069,7 @@ async function callGoogleAiStudio(modelId, apiKey, prompt, screenshotDataUrl = n
   try {
     const resp = await fetch(endpoint, {
       method: 'POST',
-      signal: AbortSignal.timeout(5200),
+      signal: AbortSignal.timeout(6500),
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts }],
@@ -1208,20 +1209,22 @@ function buildEvidenceFindings(scrapedDom, hostname) {
 
   if (deadLinksCount > 0) {
     const sampleDead = deadLinkSnippets[0] || '<a href="#">Link</a>';
+    const hasJsVoid = deadLinkSnippets.some((s) => /href\s*=\s*["']javascript:/i.test(s));
     findings.push({
       id: 'DEAD_OR_PLACEHOLDER_LINKS',
-      title: `${deadLinksCount} dead or placeholder link${deadLinksCount === 1 ? '' : 's'} (href="#" or empty)`,
+      title: `${deadLinksCount} dead or placeholder link${deadLinksCount === 1 ? '' : 's'} (${hasJsVoid ? 'href="#" or javascript:void(0)' : 'href="#" or empty'})`,
       plainEnglishImpact:
-        'Customers tapping a link with href="#" get jumped to the top of the page instead of navigating — a common unfinished template bug that kills trust.',
+        'Customers tapping a link with href="#" or javascript:void(0) either jump to the top of the page or hit a dead tap if JS fails to bind — a common bug that kills mobile trust.',
       severity: deadLinksCount >= 3 ? 'MEDIUM' : 'LOW',
       claimType: 'OBSERVED_FACT',
       evidenceSource: 'STATIC_HTML',
       role: 'link',
       accessibleName: null,
-      diagnosticSelector: 'a[href="#"]',
+      diagnosticSelector: hasJsVoid ? 'a[href^="javascript:"], a[href="#"]' : 'a[href="#"], a[href=""]',
       markupSnippet: sampleDead,
       confidence: 0.96,
-      limitationNote: 'Observed href="#" / empty href in static HTML. If JS attaches a click handler, use a semantic <button type="button"> instead.',
+      limitationNote:
+        'Observed href="#", empty href, or javascript:void(0) in static HTML. If JS attaches a click handler, use a semantic <button type="button"> instead.',
       remediationEligible: true,
       remediationSnippet: {
         del: sampleDead,
@@ -1482,7 +1485,7 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
       'IMPORTANT: Do NOT invent conversion drop percentages or dollar revenue loss. Return strict JSON with keys: anomalyTitle (string), summary (2 clear sentences for a non-technical startup/D2C founder citing exact observed defects and how to fix them).',
     ].join(' ');
 
-    for (const candidateModel of ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemma-4-31b-it']) {
+    for (const candidateModel of ['gemini-3.1-flash-lite', 'gemini-3-flash-preview', 'gemma-4-26b-a4b-it']) {
       const r = await callGoogleAiStudio(
         candidateModel,
         apiKey,
@@ -1580,11 +1583,15 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
     ];
   }
 
+  const llmExecuted = Boolean(llmResult);
+  const estimatedCost = llmExecuted ? AMORTIZED_AUDIT_COST_USD : 0;
+
   const telemetry = {
     credentialsConfigured: Boolean(process.env.GEMINI_API_KEY),
+    llmExecuted,
     providerCalls,
     providerCallCount: providerCalls.length,
-    estimatedMarginalCostUsd: AMORTIZED_AUDIT_COST_USD,
+    estimatedMarginalCostUsd: estimatedCost,
     costCeilingUsd: UNIT_ECONOMICS_CEILING_USD,
     costBasis: 'AMORTIZED_ESTIMATE_NOT_MEASURED_BILLING',
     measuredTokenUsage,
@@ -1947,7 +1954,7 @@ export default async function handler(req, res) {
     httpStatus: scrapedDom.httpStatus,
     latencyMs: totalLatencyMs,
     activeModel,
-    fallbackModel: 'gemini-3.1-flash-lite',
+    fallbackModel: 'gemini-3-flash-preview',
     executionMode,
     execution_mode: executionMode,
     revenue_metric_applicable: false,
@@ -1955,7 +1962,7 @@ export default async function handler(req, res) {
       inv04_ast_whitelist: VERIFIED_AST_WHITELIST,
       inv06_cost_ceiling_usd: UNIT_ECONOMICS_CEILING_USD,
     },
-    telemetry_cost_usd: Math.min(AMORTIZED_AUDIT_COST_USD, UNIT_ECONOMICS_CEILING_USD),
+    telemetry_cost_usd: telemetry.llmExecuted ? Math.min(AMORTIZED_AUDIT_COST_USD, UNIT_ECONOMICS_CEILING_USD) : 0,
     costCeilingUsd: UNIT_ECONOMICS_CEILING_USD,
     telemetry,
     page_metadata: {

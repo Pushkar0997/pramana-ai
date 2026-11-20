@@ -194,6 +194,10 @@ test('Startup / Vibe-Coded / Small D2C detector flags dead links, boilerplate ti
 
   const ids = synthesized.customFinding.findings.map((f) => f.id);
   assert.ok(ids.includes('DEAD_OR_PLACEHOLDER_LINKS'), 'Expected DEAD_OR_PLACEHOLDER_LINKS');
+  const deadLinkFinding = synthesized.customFinding.findings.find((f) => f.id === 'DEAD_OR_PLACEHOLDER_LINKS');
+  assert.match(deadLinkFinding.title, /javascript:void\(0\)/i, 'Title should mention javascript:void(0) when matched');
+  assert.match(deadLinkFinding.diagnosticSelector, /javascript:/i, 'Diagnostic selector should reflect javascript: hrefs');
+  assert.equal(synthesized.telemetry.estimatedMarginalCostUsd, 0, 'Deterministic fallback (0 LLM calls) must report $0.00 estimated marginal cost');
   assert.ok(ids.includes('VIBE_CODE_BOILERPLATE_TITLE'), 'Expected VIBE_CODE_BOILERPLATE_TITLE');
   assert.ok(ids.includes('IMAGES_MISSING_DIMENSIONS_CLS'), 'Expected IMAGES_MISSING_DIMENSIONS_CLS');
   assert.ok(synthesized.customFinding.findings.every((f) => Boolean(f.plainEnglishImpact)), 'Every finding must have plainEnglishImpact');

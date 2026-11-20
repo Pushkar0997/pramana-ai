@@ -2,18 +2,18 @@ import React, { useState } from 'react';
 
 const ADR_006_MATRIX = [
   {
-    blocked: 'Gemini 3.5 Flash-Lite (Primary Live)',
-    virtualizedBy: 'Executes live server-side on /api/audit (JSON + Multimodal Vision)',
+    blocked: 'Gemini 3.1 Flash-Lite (Primary Live)',
+    virtualizedBy: 'Sub-2s live server-side JSON + Multimodal Vision audit on /api/audit',
     cost: 'Live Server Call',
   },
   {
-    blocked: 'Gemini 3.1 Flash-Lite (Fast Fallback)',
-    virtualizedBy: 'Automatic server-side fallback if primary throttles',
+    blocked: 'Gemini 3 Flash Preview (Fallback)',
+    virtualizedBy: 'Automatic server-side fallback if primary throttles (minimal thinking)',
     cost: 'Live Server Call',
   },
   {
-    blocked: 'Gemma 4 31B (14.4K RPD Workhorse)',
-    virtualizedBy: 'High-throughput text cascade fallback on Google AI Studio',
+    blocked: 'Gemma 4 26B MoE / Gemma 4 31B (14.4K RPD)',
+    virtualizedBy: 'High-throughput Gemma 4 cascade fallback on Google AI Studio',
     cost: 'Live Server Call',
   },
   {
@@ -27,7 +27,11 @@ export function LiveTelemetryStrip({ health, liveMeta, isProbing }) {
   const [matrixOpen, setMatrixOpen] = useState(false);
   const tel = liveMeta?.telemetry || null;
   const providerCalls = tel?.providerCallCount ?? 0;
-  const tokensText = tel?.measuredTokenUsage?.available
+  const hasMeasuredTokens = Boolean(tel?.measuredTokenUsage?.available);
+  const isDeterministicFallback = Boolean(
+    liveMeta && !hasMeasuredTokens && (tel?.estimatedMarginalCostUsd === 0 || liveMeta.activeModel === 'deterministic-static-html-parser')
+  );
+  const tokensText = hasMeasuredTokens
     ? `${tel.measuredTokenUsage.inputTokens ?? '?'} in / ${tel.measuredTokenUsage.outputTokens ?? '?'} out`
     : 'Not measured (0 LLM calls)';
 
@@ -48,7 +52,7 @@ export function LiveTelemetryStrip({ health, liveMeta, isProbing }) {
             ● {health?.status === 'ok' ? 'SERVER API LIVE (ZERO CLIENT KEYS)' : 'CHECKING /API/HEALTH'}
           </span>
           <span style={{ background: '#F6F7FB', border: '1px solid #D8DCEA', borderRadius: '999px', padding: '2px 8px', color: '#1B27C7', fontSize: '11px' }}>
-            Live Cascade: Gemini 3.5 Flash-Lite → Gemini 3.1 Flash-Lite → Gemma 4 31B
+            Live Cascade: Gemini 3.1 Flash-Lite → Gemini 3 Flash → Gemma 4 26B MoE
           </span>
         </div>
 
@@ -98,7 +102,7 @@ export function LiveTelemetryStrip({ health, liveMeta, isProbing }) {
             <span>·</span>
             <span>Tokens: {tokensText}</span>
             <span>·</span>
-            <span>Est. Marginal: $0.024 (&le; $0.025 INV-06)</span>
+            <span>Est. Marginal: {isDeterministicFallback ? '$0.00 (deterministic fallback)' : '$0.024 (≤ $0.025 INV-06)'}</span>
           </>
         ) : (
           <span>

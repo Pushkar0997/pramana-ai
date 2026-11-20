@@ -1932,7 +1932,14 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
           <span className="kicker">Auditable Telemetry (T-309)</span>
           <div className="mono" style={{ fontSize: 11.5, color: "var(--ink)", display: "grid", gap: 3 }}>
             <div>Provider Calls: <b style={{ color: "var(--cyan)" }}>{providerCallsCount}</b> ({customAudit.activeModel})</div>
-            <div>Est. Marginal: <b>${telemetry.estimatedMarginalCostUsd ?? 0.024}</b> <span style={{ color: "var(--mute)" }}>(amortized)</span></div>
+            <div>
+              Est. Marginal:{" "}
+              {telemetry.measuredTokenUsage?.available ? (
+                <><b>${telemetry.estimatedMarginalCostUsd ?? 0.024}</b> <span style={{ color: "var(--mute)" }}>(amortized)</span></>
+              ) : (
+                <><b>$0.00</b> <span style={{ color: "var(--mute)" }}>(deterministic fallback)</span></>
+              )}
+            </div>
             <div>Tokens: <span style={{ color: "var(--ink2)" }}>{tokenText}</span></div>
             <div style={{ color: "var(--mute)", fontSize: 10.5 }}>Revenue Impact: N/A (Static HTML)</div>
           </div>
@@ -2938,7 +2945,21 @@ export default function App() {
         <footer className="colophon">
           <div className="gutter colo-row">
             <span>
-              <b>Pramana AI (प्रमाण)</b> · Built by Team Vimarsha · ZestKart &amp; ScaleGrid are fictional demo storefronts.
+              <b>
+                Pramana AI (
+                <span
+                  lang="sa"
+                  style={{
+                    fontFamily: "'Noto Serif Devanagari', Georgia, serif",
+                    color: "#93C5FD",
+                    fontWeight: 700,
+                  }}
+                >
+                  प्रमाण
+                </span>
+                )
+              </b>{" "}
+              · Built by Team Vimarsha · ZestKart &amp; ScaleGrid are fictional demo storefronts.
             </span>
             <div className="colo-links">
               <button type="button" onClick={() => setShowQuotas((q) => !q)}>
