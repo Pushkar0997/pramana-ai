@@ -766,6 +766,11 @@ export function parseLiveHtmlDocument(
     fetchError,
   });
 
+  const ogImageMatch =
+    safeHtml.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+    safeHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  const ogImage = ogImageMatch ? decodeHtmlEntities(ogImageMatch[1]).trim() : null;
+
   return {
     httpStatus,
     contentType,
@@ -775,6 +780,7 @@ export function parseLiveHtmlDocument(
     htmlKilobytes,
     pageTitle,
     metaDescription,
+    ogImage,
     headings,
     interactiveElements,
     surfaceInfo,
@@ -800,6 +806,22 @@ export function parseLiveHtmlDocument(
   };
 }
 
+function detectFrameEmbedPolicy(headers) {
+  const xfo = String(headers?.get?.('x-frame-options') || '').trim();
+  const csp = String(headers?.get?.('content-security-policy') || '');
+  const faMatch = csp.match(/frame-ancestors\s+([^;]+)/i);
+  if (xfo && /^(deny|sameorigin)/i.test(xfo)) {
+    return { frameAllowed: false, frameBlockedReason: `X-Frame-Options: ${xfo}` };
+  }
+  if (faMatch) {
+    const policy = faMatch[1].trim();
+    if (policy === "'none'" || policy === "'self'" || !policy.includes('*')) {
+      return { frameAllowed: false, frameBlockedReason: `CSP frame-ancestors ${policy}` };
+    }
+  }
+  return { frameAllowed: true, frameBlockedReason: null };
+}
+
 async function scrapeLiveDom(targetUrl) {
   const started = Date.now();
   const controller = new AbortController();
@@ -811,7 +833,7 @@ async function scrapeLiveDom(targetUrl) {
       signal: controller.signal,
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 PramanaAI-Auditor/1.0',
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1 PramanaAI-MobileAuditor/1.0',
         Accept: 'text/html,application/xhtml+xml',
       },
     });
@@ -819,12 +841,33 @@ async function scrapeLiveDom(targetUrl) {
     const html = await resp.text();
     const contentType = resp.headers.get('content-type') || 'text/html';
     const serverHeader = resp.headers.get('server') || 'edge';
+    const framePolicy = detectFrameEmbedPolicy(resp.headers);
 
-    return parseLiveHtmlDocument(html, targetUrl, resp.status, contentType, serverHeader, fetchLatencyMs, null);
+    const parsed = parseLiveHtmlDocument(html, targetUrl, resp.status, contentType, serverHeader, fetchLatencyMs, null);
+    return {
+      ...parsed,
+      mobileViewport: {
+        width: 390,
+        height: 844,
+        userAgentProfile: 'iPhone 15 · Mobile Safari 17.5',
+        frameAllowed: framePolicy.frameAllowed,
+        frameBlockedReason: framePolicy.frameBlockedReason,
+      },
+    };
   } catch (err) {
     const fetchLatencyMs = Math.max(18, Date.now() - started);
     const errMsg = err instanceof Error ? err.message : 'network_timeout';
-    return parseLiveHtmlDocument('', targetUrl, 0, 'text/plain', 'unreachable', fetchLatencyMs, errMsg);
+    const parsed = parseLiveHtmlDocument('', targetUrl, 0, 'text/plain', 'unreachable', fetchLatencyMs, errMsg);
+    return {
+      ...parsed,
+      mobileViewport: {
+        width: 390,
+        height: 844,
+        userAgentProfile: 'iPhone 15 · Mobile Safari 17.5',
+        frameAllowed: false,
+        frameBlockedReason: errMsg,
+      },
+    };
   } finally {
     clearTimeout(timer);
   }

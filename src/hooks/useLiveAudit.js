@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiUrl } from '../utils/apiBase';
 
 const DEFAULT_HEALTH = {
   status: 'unknown',
@@ -56,7 +57,7 @@ export function useLiveAudit(initialScenarioId = 'S1_HINDI_OVERFLOW') {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2500);
 
-    fetch('/api/health', { signal: controller.signal })
+    fetch(apiUrl('/api/health'), { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!active || !data) return;
@@ -102,7 +103,7 @@ export function useLiveAudit(initialScenarioId = 'S1_HINDI_OVERFLOW') {
       const started = performance.now();
       setIsProbing(true);
       try {
-        const res = await fetch('/api/audit', {
+        const res = await fetch(apiUrl('/api/audit'), {
           method: 'POST',
           signal: controller.signal,
           headers: { 'Content-Type': 'application/json' },
