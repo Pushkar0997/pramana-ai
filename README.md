@@ -4,15 +4,17 @@
 
 ### Pramana finds conversion-killing bugs on checkout pages and drafts the fix.
 
-**Paste any public URL for a live HTML & accessibility audit + copyable fix, or explore worked examples on our connected demo storefront.**
+**Live App (Firebase Hosting):** **[https://pramana-ai-b83d2.web.app](https://pramana-ai-b83d2.web.app)**
 
+**Paste any public URL for a live `390×844` mobile & HTML audit + copyable Cursor/Lovable fix prompt, or explore 5 worked examples on our connected demo storefront.**
+
+[![Live Demo](https://img.shields.io/badge/Live%20App-Firebase%20Hosting-FFCA28?style=flat-square&logo=firebase&logoColor=090A0F&labelColor=090A0F)](https://pramana-ai-b83d2.web.app)
 [![Spec Gate](https://img.shields.io/badge/spec__lint-passing-34D399?style=flat-square&labelColor=090A0F)](./scripts/spec_lint.py)
 [![Zero Budget](https://img.shields.io/badge/infra-%240.00%20zero--budget-22D3EE?style=flat-square&labelColor=090A0F)](./CONTRACT.md)
-[![Google DeepMind](https://img.shields.io/badge/Google%20DeepMind-%C3%97%20Antigravity-4285F4?style=flat-square&labelColor=090A0F)](./spec/architecture.md)
+[![Google DeepMind](https://img.shields.io/badge/Google%20AI-Gemini%203.1%20%2B%20Gemma%204-4285F4?style=flat-square&labelColor=090A0F)](./spec/architecture.md)
 [![Team Vimarsha](https://img.shields.io/badge/team-Vimarsha-FBBF24?style=flat-square&labelColor=090A0F)](./BRIEF.md)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&labelColor=090A0F)](./package.json)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&labelColor=090A0F)](./vite.config.js)
-[![Vercel](https://img.shields.io/badge/deploy-Vercel%20Free-000000?style=flat-square&labelColor=090A0F)](./vercel.json)
 
 **Startup Buildathon India 2026** · Team Vimarsha · *Pramana* (Sanskrit) — *valid evidence*
 
@@ -36,14 +38,14 @@ To keep our engineering claims verifiable for judges and users, Pramana explicit
 
 ## 🔗 Live Interactive Surfaces
 
-Four browser surfaces on one zero-budget deployment (`https://pramana-ai-eta.vercel.app/`):
+Primary Firebase Hosting deployment: **[https://pramana-ai-b83d2.web.app](https://pramana-ai-b83d2.web.app)** (backed by zero-client-key server-side `/api/*` Gemini 3.1 Flash-Lite / Gemma 4 cascade; optional Cloud Run Playwright worker packaged in [`cloudrun/`](./cloudrun/README.md)):
 
 | Route | Surface | What judges & visitors can do | Source |
 |---|---|---|---|
-| `/` | **Pramana Audit Workstation** | Paste any public URL (or click `google.com` / `github.com` / `example.com`) for a live HTML & accessibility audit, or explore the 3 worked examples on our ZestKart demo store | [`src/App.jsx`](./src/App.jsx) |
-| `/demo-store/index.html` | **Connected Demo Storefront (ZestKart)** | Trigger our 3 intentional checkout bugs (`S1_HINDI_OVERFLOW`, `S2_UPI_TIMEOUT`, `S3_DARKMODE_CONTRAST`), test the voice orb (`/orb.js`), and replay `/api/upi/confirm` (`504` vs `200`) | [`public/demo-store/index.html`](./public/demo-store/index.html) |
-| `/proof/index.html?id=142` | **Shareable Audit Summary** | View a clean, standalone summary of any worked example or live URL audit with a copyable `.diff` snippet | [`public/proof/index.html`](./public/proof/index.html) |
-| `/deck/index.html` | **Interactive 8-Slide Buildathon Pitch Deck** | Browse the 8-slide architecture & business pitch and export a printable PDF | [`public/deck/index.html`](./public/deck/index.html) |
+| [`/`](https://pramana-ai-b83d2.web.app/) | **Pramana Audit Workstation** | Paste any public URL (or click `boldcare.in` / `plumgoodness.com` / `beminimalist.co` / `thesouledstore.com` / `github.com` / `apple.com/shop/bag`) for a live `390×844` mobile screen + X-Ray + DOM audit, or explore 5 worked examples on our connected demo storefront | [`src/App.jsx`](./src/App.jsx) |
+| [`/demo-store/index.html`](https://pramana-ai-b83d2.web.app/demo-store/index.html) | **Connected Demo Storefront (ZestKart)** | Trigger our 3 intentional checkout bugs (`S1_HINDI_OVERFLOW`, `S2_UPI_TIMEOUT`, `S3_DARKMODE_CONTRAST`), test the voice orb (`/orb.js`), and replay `/api/upi/confirm` (`504` vs `200`) | [`public/demo-store/index.html`](./public/demo-store/index.html) |
+| [`/proof/index.html?id=142`](https://pramana-ai-b83d2.web.app/proof/index.html?id=142) | **Shareable Audit Summary** | View a clean, standalone summary of any worked example or live URL audit with a copyable `.diff` snippet | [`public/proof/index.html`](./public/proof/index.html) |
+| [`/deck/index.html`](https://pramana-ai-b83d2.web.app/deck/index.html) | **Interactive 8-Slide Buildathon Pitch Deck** | Browse the 8-slide architecture & business pitch and export a printable PDF | [`public/deck/index.html`](./public/deck/index.html) |
 
 ---
 
@@ -80,7 +82,8 @@ npm install
 # 2. Run local dev server
 npm run dev
 
-# 3. Run spec gate & all 24 unit/contract tests
+# 3. Run spec gate & all 25 unit/contract tests + 9 Node trust/security tests
 python scripts/spec_lint.py
 python -m unittest discover -s tests -p "test_*.py" -v
+node --test tests/test_live_report_trust.mjs
 ```

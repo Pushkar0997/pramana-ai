@@ -62,3 +62,4 @@
   - Updated `api/audit.js`, `src/App.jsx`, and `src/components/LiveTelemetryStrip.jsx` so deterministic fallback runs (0 LLM calls) honestly report **`$0.00 (deterministic fallback)`** instead of `$0.024 (amortized)`.
   - Fixed dark-footer Devanagari (`प्रमाण`) visibility by preloading `Noto Serif Devanagari` in `index.html` and styling the footer span explicitly (`color: #93C5FD`, `fontFamily: 'Noto Serif Devanagari'`).
   - Fixed `DEAD_OR_PLACEHOLDER_LINKS` diagnostic copy & selector to accurately report `href="#" or javascript:void(0)` (`a[href^="javascript:"], a[href="#"]`) when `javascript:void(0)` links are observed.
+- **README Firebase Hosting Link Update (`README.md`):** Promoted live Firebase Hosting deployment (`https://pramana-ai-b83d2.web.app`) to the top of `README.md` with clickable badges and direct route links.
