@@ -249,6 +249,48 @@ function decodeHtmlEntities(str) {
     .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)));
 }
 
+function dedupeRepeatedHeading(raw) {
+  const text = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  const words = text.split(' ');
+  if (words.length >= 2 && words.length % 2 === 0) {
+    const half = words.length / 2;
+    const first = words.slice(0, half).join(' ');
+    const second = words.slice(half).join(' ');
+    if (first.toLowerCase() === second.toLowerCase()) return first;
+  }
+  const sepParts = text.split(/\s*[|·—–-]\s*/).filter(Boolean);
+  if (sepParts.length === 2 && sepParts[0].toLowerCase() === sepParts[1].toLowerCase()) {
+    return sepParts[0];
+  }
+  return text;
+}
+
+const SEVERITY_RANK = {
+  PASS: 0,
+  INFO: 0,
+  LOW: 1,
+  MEDIUM: 2,
+  HIGH: 3,
+  CRITICAL: 4,
+};
+
+function deriveSeverityFromFindings(findings, limited) {
+  if (limited) return 'UNVERIFIED';
+  if (!Array.isArray(findings) || findings.length === 0) return 'PASS';
+  let top = 'PASS';
+  let topRank = 0;
+  for (const f of findings) {
+    const s = String(f?.severity || '').toUpperCase();
+    const rank = SEVERITY_RANK[s] ?? 0;
+    if (rank > topRank) {
+      topRank = rank;
+      top = s;
+    }
+  }
+  return top;
+}
+
 function cleanVisibleText(rawHtml) {
   const withoutScripts = String(rawHtml || '')
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
@@ -628,7 +670,7 @@ export function parseLiveHtmlDocument(
   const headingRe = /<(h[1-3])\b[^>]*>([\s\S]*?)<\/\1>/gi;
   let m;
   while ((m = headingRe.exec(bodyWithoutScripts)) !== null && headings.length < 8) {
-    const text = cleanVisibleText(m[2]);
+    const text = dedupeRepeatedHeading(cleanVisibleText(m[2]));
     if (text && text.length >= 2) {
       headings.push({ tag: m[1].toLowerCase(), text: text.slice(0, 110) });
     }
@@ -1431,28 +1473,9 @@ export async function synthesizeCustomSiteAudit(targetUrl, hostname, scrapedDom,
     }
   }
 
-  let severity = 'PASS';
-  if (limitation.limited) {
-    severity = 'UNVERIFIED';
-  } else if (surfaceInfo.hasDirectPaymentFlow && totalFlags >= 3) {
-    severity = 'CRITICAL';
-  } else if (
-    (surfaceInfo.hasDirectPaymentFlow && totalFlags >= 1) ||
-    totalFlags >= 6 ||
-    zoomBlocked ||
-    renderedFindings.some((f) => f.severity === 'HIGH' || f.severity === 'CRITICAL')
-  ) {
-    severity = 'HIGH';
-  } else if (totalFlags >= 2) {
-    severity = 'MEDIUM';
-  } else if (totalFlags === 1) {
-    severity = 'LOW';
-  } else {
-    severity = 'PASS';
-  }
-
   const staticFindings = buildEvidenceFindings({ ...scrapedDom, auditLimitation: limitation }, hostname);
   const findings = [...renderedFindings, ...staticFindings];
+  const severity = deriveSeverityFromFindings(findings, limitation.limited);
   const primaryFinding = findings.find((f) => f.remediationEligible) || null;
   const remediationEligible = Boolean(!limitation.limited && primaryFinding);
   const actionKit = buildFounderActionKit(

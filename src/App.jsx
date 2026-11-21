@@ -1704,7 +1704,19 @@ function LiveMobileViewport({ customAudit }) {
                   />
                 )}
                 <div style={{ fontWeight: 800, fontSize: 15, lineHeight: 1.25, marginBottom: 4 }}>
-                  {headings[0]?.text || dom.pageTitle || customAudit.hostname}
+                  {(() => {
+                    const raw = String(headings[0]?.text || dom.pageTitle || customAudit.hostname || "").replace(/\s+/g, " ").trim();
+                    const words = raw.split(" ");
+                    if (words.length >= 2 && words.length % 2 === 0) {
+                      const half = words.length / 2;
+                      const a = words.slice(0, half).join(" ");
+                      const b = words.slice(half).join(" ");
+                      if (a.toLowerCase() === b.toLowerCase()) return a;
+                    }
+                    const parts = raw.split(/\s*[|·—–-]\s*/).filter(Boolean);
+                    if (parts.length === 2 && parts[0].toLowerCase() === parts[1].toLowerCase()) return parts[0];
+                    return raw;
+                  })()}
                 </div>
                 {dom.metaDescription && (
                   <p style={{ margin: "0 0 10px", fontSize: 11.5, color: "#3B4259", lineHeight: 1.4 }}>
@@ -1778,7 +1790,22 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
 
   const isUnverified = Boolean(limitation.limited || finding.severity === "UNVERIFIED");
   const score = typeof finding.domHealthScore === "number" ? finding.domHealthScore : null;
-  const sev = finding.severity || (isUnverified ? "UNVERIFIED" : "PASS");
+  const sev = (() => {
+    if (isUnverified) return "UNVERIFIED";
+    if (findingsList.length === 0) return "PASS";
+    const rank = { PASS: 0, INFO: 0, LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 };
+    let top = "PASS";
+    let topRank = 0;
+    for (const f of findingsList) {
+      const s = String(f?.severity || "").toUpperCase();
+      const r = rank[s] ?? 0;
+      if (r > topRank) {
+        topRank = r;
+        top = s;
+      }
+    }
+    return top;
+  })();
   const remediationEligible = Boolean(finding.remediationEligible && !isUnverified);
   const diffLines = finding.diffLines || [];
   const rawFix = diffLines.map((l) => `${l.t === "add" ? "+ " : l.t === "del" ? "- " : "  "}${l.c}`).join("\n");
@@ -2147,25 +2174,42 @@ function CalmLiveReport({ customAudit, onOpenShare, onOpenConnectRepo }) {
               </p>
             </div>
           </div>
-
-          {/* Collapsible Developer Diagnostics & Auditable Telemetry JSON */}
-          <div className="story">
-            <button type="button" onClick={() => setShowTechJson((v) => !v)} className="story-head">
-              <div>
-                <span className="kicker">Developer Diagnostics</span>
-                <span style={{ fontWeight: 700, fontSize: 13.5 }}>Raw Server JSON &amp; Telemetry Ledger</span>
-              </div>
-              <Icon n="chevron" size={16} style={{ transform: showTechJson ? "rotate(180deg)" : "none" }} />
-            </button>
-            {showTechJson && (
-              <div className="story-body" style={{ paddingTop: 12 }}>
-                <pre className="mono" style={{ margin: 0, padding: 12, background: "var(--well)", border: "1px solid var(--rule)", borderRadius: 6, fontSize: 11, overflowX: "auto", color: "var(--ink)" }}>
-                  {JSON.stringify({ telemetry, auditLimitation: limitation, customFinding: finding }, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
         </div>
+      </div>
+
+      {/* Collapsible Full-Width Developer Diagnostics & Auditable Telemetry JSON */}
+      <div className="story" style={{ width: "100%" }}>
+        <button type="button" onClick={() => setShowTechJson((v) => !v)} className="story-head">
+          <div>
+            <span className="kicker">Developer Diagnostics</span>
+            <span style={{ fontWeight: 700, fontSize: 13.5 }}>Raw Server JSON &amp; Telemetry Ledger</span>
+          </div>
+          <Icon n="chevron" size={16} style={{ transform: showTechJson ? "rotate(180deg)" : "none" }} />
+        </button>
+        {showTechJson && (
+          <div className="story-body" style={{ paddingTop: 12 }}>
+            <pre
+              className="mono overflow-x-auto whitespace-pre-wrap break-words"
+              style={{
+                margin: 0,
+                padding: 12,
+                background: "var(--well)",
+                border: "1px solid var(--rule)",
+                borderRadius: 6,
+                fontSize: 11,
+                overflowX: "auto",
+                whiteSpace: "pre-wrap",
+                overflowWrap: "anywhere",
+                wordBreak: "break-word",
+                maxHeight: 520,
+                overflowY: "auto",
+                color: "var(--ink)",
+              }}
+            >
+              {JSON.stringify({ telemetry, auditLimitation: limitation, customFinding: finding }, null, 2)}
+            </pre>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -2949,9 +2993,10 @@ export default function App() {
                 Pramana AI (
                 <span
                   lang="sa"
+                  className="text-slate-100"
                   style={{
                     fontFamily: "'Noto Serif Devanagari', Georgia, serif",
-                    color: "#93C5FD",
+                    color: "#F1F5F9",
                     fontWeight: 700,
                   }}
                 >

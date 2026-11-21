@@ -63,3 +63,8 @@
   - Fixed dark-footer Devanagari (`प्रमाण`) visibility by preloading `Noto Serif Devanagari` in `index.html` and styling the footer span explicitly (`color: #93C5FD`, `fontFamily: 'Noto Serif Devanagari'`).
   - Fixed `DEAD_OR_PLACEHOLDER_LINKS` diagnostic copy & selector to accurately report `href="#" or javascript:void(0)` (`a[href^="javascript:"], a[href="#"]`) when `javascript:void(0)` links are observed.
 - **README Firebase Hosting Link Update (`README.md`):** Promoted live Firebase Hosting deployment (`https://pramana-ai-b83d2.web.app`) to the top of `README.md` with clickable badges and direct route links.
+- **Pre-Cutoff 4 Surgical Polish Fixes (`api/audit.js`, `src/App.jsx`, `tests/test_live_report_trust.mjs`):**
+  1. Derived live top-level verdict strictly from the highest observed finding severity (`CRITICAL > HIGH > MEDIUM > LOW > PASS`, `UNVERIFIED` when limited) so live audits never inflate above actual finding severities (keeping `BENCHMARK_FIXTURE` intact).
+  2. Boosted dark-footer Devanagari (`प्रमाण`) contrast to `text-slate-100` (`#F1F5F9`) for immediate legibility on first paint.
+  3. Deduplicated repeated `DOM` tab headings (e.g., `Bold Care Bold Care` → `Bold Care`) in both `api/audit.js` and `LiveMobileViewport`.
+  4. Moved `Developer Diagnostics: Raw Server JSON & Telemetry Ledger` to full-width below the 2-column grid (collapsed by default) with `overflow-x-auto whitespace-pre-wrap break-words` and bounded vertical scroll to eliminate horizontal clipping and empty left columns.

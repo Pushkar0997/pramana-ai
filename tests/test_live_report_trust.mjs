@@ -182,7 +182,7 @@ test('T-306: Honest pending state, full-URL binding, error handling, and out-of-
 test('Startup / Vibe-Coded / Small D2C detector flags dead links, boilerplate title, CLS images, and generates AI Fix Prompt + Founder Outreach', async () => {
   const vibeHtml = `<!doctype html><html><head><title>Vite + React</title></head><body>
     <main>
-      <h1>FreshD2C</h1>
+      <h1><span>FreshD2C</span><span>FreshD2C</span></h1>
       <a href="#">Buy Now</a>
       <a href="javascript:void(0)">Apply Coupon</a>
       <input type="email" />
@@ -191,6 +191,9 @@ test('Startup / Vibe-Coded / Small D2C detector flags dead links, boilerplate ti
   </body></html>`;
   const parsed = parseLiveHtmlDocument(vibeHtml, 'https://freshd2c.in/checkout', 200, 'text/html', 'edge', 95, null);
   const synthesized = await synthesizeCustomSiteAudit('https://freshd2c.in/checkout', 'freshd2c.in', parsed, { skipLlm: true });
+
+  assert.equal(parsed.headings[0].text, 'FreshD2C', 'Duplicate H1 text should be deduplicated cleanly');
+  assert.equal(synthesized.customFinding.severity, 'MEDIUM', 'Live verdict must derive strictly from highest finding severity (no CRITICAL inflation above MEDIUM/LOW findings)');
 
   const ids = synthesized.customFinding.findings.map((f) => f.id);
   assert.ok(ids.includes('DEAD_OR_PLACEHOLDER_LINKS'), 'Expected DEAD_OR_PLACEHOLDER_LINKS');
